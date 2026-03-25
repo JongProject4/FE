@@ -1,0 +1,167 @@
+'use client'
+// src/components/calendar/CalendarPage.tsx
+// ✅ 메인 캘린더 페이지 - 모든 뷰를 조율합니다
+import { useState } from 'react'
+import { CalendarGrid } from './CalendarGrid'
+import { DayPopup } from './DayPopup'
+import { ClinicForm } from './ClinicForm'
+import { MedForm } from './MedForm'
+import { useCalendarStore } from './store'
+import { ClinicRecord, MedRecord, Child } from './types'
+import { dateKey } from './utils'
+import { BottomNav } from '@/components/layout/BottomNav'
+
+type View = 'calendar' | 'day' | 'clinic-form' | 'med-form' | 'success'
+
+// 샘플 아이들 (실제로는 부모 컴포넌트에서 props로 받아야 함)
+const SAMPLE_CHILDREN: Child[] = [
+  { id: 'child-1', name: '지아', age: '4세', gender: 'FEMALE' },
+  { id: 'child-2', name: '민준', age: '7세', gender: 'MALE' },
+]
+
+interface Props {
+  children?: Child[]  // 실제 아이 목록을 부모에서 전달
+}
+
+export function CalendarPage({ children = SAMPLE_CHILDREN }: Props) {
+  const today = new Date()
+  const [year, setYear] = useState(today.getFullYear())
+  const [month, setMonth] = useState(today.getMonth())
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null)
+  const [view, setView] = useState<View>('calendar')
+  const [successMsg, setSuccessMsg] = useState({ title: '', sub: '' })
+
+  const { events, addEvent, removeEvent, getEventsForDate } = useCalendarStore()
+
+  const handlePrevMonth = () => {
+    if (month === 0) { setYear(y => y - 1); setMonth(11) }
+    else setMonth(m => m - 1)
+  }
+
+  const handleNextMonth = () => {
+    if (month === 11) { setYear(y => y + 1); setMonth(0) }
+    else setMonth(m => m + 1)
+  }
+
+  const handleDayClick = (date: Date) => {
+    setSelectedDate(date)
+    setView('day')
+  }
+
+  const handleSaveClinic = (record: ClinicRecord) => {
+    addEvent(record)
+    setSuccessMsg({
+      title: '내원 기록이 저장되었습니다!',
+      sub: `${record.hospital} · ${record.diagnosis}`,
+    })
+    setView('success')
+  }
+
+  const handleSaveMed = (record: MedRecord) => {
+    addEvent(record)
+    setSuccessMsg({
+      title: '복약 기록이 저장되었습니다!',
+      sub: `${record.medName}${record.alarmEnabled ? ' · 알림 설정됨' : ''}`,
+    })
+    setView('success')
+  }
+
+  const handleRemoveEvent = (id: string) => {
+    if (selectedDate) removeEvent(selectedDate, id)
+  }
+
+  const dayEvents = selectedDate ? getEventsForDate(selectedDate) : []
+
+  return (
+    <div className="flex flex-col h-dvh max-w-[430px] mx-auto bg-[#F5F8FF] overflow-hidden">
+
+      {/* ── 캘린더 뷰 ── */}
+      {view === 'calendar' && (
+        <div className="flex-1 overflow-y-auto">
+          <CalendarGrid
+            year={year}
+            month={month}
+            events={events}
+            onDayClick={handleDayClick}
+            onPrevMonth={handlePrevMonth}
+            onNextMonth={handleNextMonth}
+          />
+        </div>
+      )}
+
+      {/* ── 하루 이벤트 뷰 ── */}
+      {view === 'day' && selectedDate && (
+        <div className="flex flex-col h-full">
+          {/* Back to calendar */}
+          <div className="flex items-center gap-3 px-4 py-3 bg-white border-b border-[rgba(74,144,217,0.12)] flex-shrink-0">
+            <button
+              onClick={() => setView('calendar')}
+              className="w-8 h-8 rounded-full border border-[rgba(74,144,217,0.2)] flex items-center justify-center text-[#6B7A99] hover:bg-[#EBF4FF]">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M15 18l-6-6 6-6" />
+              </svg>
+            </button>
+            <h2 className="text-[15px] font-semibold text-[#1A2340]">
+              {year}년 {month + 1}월
+            </h2>
+          </div>
+          <div className="flex-1 overflow-y-auto p-4">
+            <DayPopup
+              date={selectedDate}
+              events={dayEvents}
+              onClose={() => setView('calendar')}
+              onAddClinic={() => setView('clinic-form')}
+              onAddMed={() => setView('med-form')}
+              onRemove={handleRemoveEvent}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* ── 내원 기록 폼 ── */}
+      {view === 'clinic-form' && selectedDate && (
+        <ClinicForm
+          date={selectedDate}
+          children={children}
+          onSave={handleSaveClinic}
+          onBack={() => setView('day')}
+        />
+      )}
+
+      {/* ── 복약 기록 폼 ── */}
+      {view === 'med-form' && selectedDate && (
+        <MedForm
+          date={selectedDate}
+          children={children}
+          onSave={handleSaveMed}
+          onBack={() => setView('day')}
+        />
+      )}
+
+      {/* ── 저장 완료 ── */}
+      {view === 'success' && (
+        <div className="flex-1 flex flex-col items-center justify-center px-6 text-center">
+          <div className="w-16 h-16 rounded-full bg-[#EAFBF1] flex items-center justify-center mb-5">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#27500A" strokeWidth="2.5">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+          </div>
+          <h2 className="text-[18px] font-semibold text-[#1A2340] mb-2">{successMsg.title}</h2>
+          <p className="text-[14px] text-[#6B7A99] mb-8">{successMsg.sub}</p>
+          <div className="flex gap-3 w-full max-w-[280px]">
+            <button
+              onClick={() => { setView('day') }}
+              className="flex-1 py-3 rounded-xl border border-[rgba(74,144,217,0.2)] text-[14px] font-medium text-[#4A90D9] hover:bg-[#EBF4FF] transition-colors">
+              날짜로
+            </button>
+            <button
+              onClick={() => setView('calendar')}
+              className="flex-1 py-3 rounded-xl bg-[#4A90D9] text-white text-[14px] font-medium active:opacity-85 transition-opacity">
+              달력으로
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}

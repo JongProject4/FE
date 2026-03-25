@@ -6,5 +6,5 @@ import { authOptions } from '@/lib/auth'
 export default async function HomePage() {
   const session = await getServerSession(authOptions)
   if (session) redirect('/chat')
-  else redirect('/login')
+  else redirect('/onboarding')
 }

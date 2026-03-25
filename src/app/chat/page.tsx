@@ -9,15 +9,16 @@ import { MessageList } from '@/components/chat/MessageList'
 import { ChatInput } from '@/components/chat/ChatInput'
 import { WelcomeScreen } from '@/components/chat/WelcomeScreen'
 import { QuickChips } from '@/components/chat/QuickChips'
+import { BottomNav } from '@/components/layout/BottomNav'
 import toast from 'react-hot-toast'
 
 export default function ChatPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const {
-    selectedChildId, children, messages, consultationId,
+    messages, consultationId,
     isLoading, addMessage, updateLastMessage, setConsultationId,
-    setLoading, setChildren, setSelectedChild,
+    setLoading,
   } = useAppStore()
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const [uploadedImg, setUploadedImg] = useState<string | null>(null)
@@ -27,34 +28,13 @@ export default function ChatPage() {
     if (status === 'unauthenticated') router.replace('/login')
   }, [status, router])
 
-  // Load children
-  useEffect(() => {
-    if (!session?.user) return
-    fetch('/api/children')
-      .then((r) => r.json())
-      .then((data) => {
-        setChildren(data)
-        if (data.length === 0) {
-          router.push('/child-setup')
-        } else {
-          const isInvalidId = !selectedChildId || !data.find((c: any) => c.id === selectedChildId)
-          if (isInvalidId) {
-            setSelectedChild(data[0].id)
-          }
-        }
-      })
-      .catch(console.error)
-  }, [session])
-
   // Auto-scroll
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  const selectedChild = Array.isArray(children) ? children.find((c) => c.id === selectedChildId) : null
-
   const sendMessage = useCallback(async (text: string) => {
-    if (!selectedChildId || isLoading) return
+    if (isLoading) return
     if (!text.trim() && !uploadedImg) return
 
     const userMsg = {
@@ -89,7 +69,6 @@ export default function ChatPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          childId: selectedChildId,
           consultationId,
           messages: history,
           imageUrl: uploadedImg,
@@ -129,7 +108,7 @@ export default function ChatPage() {
     } finally {
       setLoading(false)
     }
-  }, [selectedChildId, isLoading, messages, consultationId, uploadedImg])
+  }, [isLoading, messages, consultationId, uploadedImg])
 
   if (status === 'loading') {
     return (
@@ -141,15 +120,11 @@ export default function ChatPage() {
 
   return (
     <main className="flex flex-col h-dvh max-w-[430px] mx-auto bg-[#F5F8FF] overflow-hidden">
-      <ChatHeader
-        child={selectedChild}
-        onChildChange={() => router.push('/child-setup')}
-      />
+      <ChatHeader />
 
       <div className="flex-1 overflow-y-auto" id="messages-container">
         {messages.length === 0 ? (
           <WelcomeScreen
-            childName={selectedChild?.name}
             onSampleClick={sendMessage}
           />
         ) : (
@@ -166,7 +141,7 @@ export default function ChatPage() {
         onSend={sendMessage}
         onImageUpload={setUploadedImg}
         uploadedImg={uploadedImg}
-        disabled={isLoading || !selectedChildId}
+        disabled={isLoading}
       />
 
       <div className="text-center text-[10px] text-[#A0AABF] py-1 bg-white">

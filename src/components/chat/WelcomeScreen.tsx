@@ -9,11 +9,10 @@ const SAMPLE_QUESTIONS = [
 ]
 
 interface Props {
-  childName?: string
   onSampleClick: (text: string) => void
 }
 
-export function WelcomeScreen({ childName, onSampleClick }: Props) {
+export function WelcomeScreen({ onSampleClick }: Props) {
   return (
     <div className="flex flex-col items-center px-5 pt-10 pb-6 animate-fade-in">
       {/* Icon */}
