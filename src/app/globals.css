@@ -1,0 +1,113 @@
+/* src/app/globals.css */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --primary: #4A90D9;
+  --primary-light: #EBF4FF;
+  --primary-mid: #B8D9F5;
+  --primary-dark: #2E6FB5;
+  --green: #52B788;
+  --green-light: #EAFBF1;
+  --bg: #F5F8FF;
+  --surface: #FFFFFF;
+  --text-primary: #1A2340;
+  --text-secondary: #6B7A99;
+  --text-muted: #A0AABF;
+  --border: rgba(74, 144, 217, 0.15);
+  --radius: 20px;
+  --radius-sm: 12px;
+  --shadow: 0 2px 16px rgba(74, 144, 217, 0.1);
+  --shadow-md: 0 4px 24px rgba(74, 144, 217, 0.15);
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Pretendard', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior: none;
+}
+
+/* Mobile-first app container */
+#app-root {
+  height: 100dvh;
+  max-width: 430px;
+  margin: 0 auto;
+  position: relative;
+  overflow: hidden;
+  background: var(--surface);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--primary-mid); border-radius: 4px; }
+
+/* Safe area */
+.safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+.safe-top { padding-top: env(safe-area-inset-top); }
+
+/* Animations */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes bounce {
+  0%, 60%, 100% { transform: translateY(0); }
+  30% { transform: translateY(-6px); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.animate-fade-up { animation: fadeUp 0.35s ease both; }
+.animate-fade-in { animation: fadeIn 0.25s ease both; }
+
+/* Typing dots */
+.typing-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--primary-mid);
+  animation: bounce 1.2s infinite;
+}
+.typing-dot:nth-child(2) { animation-delay: 0.2s; }
+.typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+/* Chat bubble prose */
+.bubble-content p { margin-bottom: 6px; }
+.bubble-content p:last-child { margin-bottom: 0; }
+.bubble-content strong { font-weight: 600; }
+
+/* Risk badges */
+.risk-low { background: #EAFBF1; color: #52B788; }
+.risk-medium { background: #FFF8E1; color: #F59E0B; }
+.risk-high { background: #FEF2F2; color: #EF4444; }
+
+/* Input focus */
+input:focus, textarea:focus {
+  outline: none;
+}
+
+/* Button active state */
+button:active { opacity: 0.85; }

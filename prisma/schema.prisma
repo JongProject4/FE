@@ -1,0 +1,100 @@
+// prisma/schema.prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  name          String?
+  image         String?
+  fcm_token     String?
+  provider      String   @default("google") // google | apple | kakao
+  provider_id   String?
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  children      Child[]
+  sessions      Session[]
+
+  @@map("users")
+}
+
+model Session {
+  id         String   @id @default(cuid())
+  user_id    String
+  token      String   @unique
+  expires_at DateTime
+  created_at DateTime @default(now())
+
+  user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model Child {
+  id         String   @id @default(cuid())
+  user_id    String
+  name       String
+  birthdate  DateTime
+  gender     String   // MALE | FEMALE
+  weight     Float?
+  allergies  String?
+  avatar_url String?
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  user          User           @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  consultations Consultation[]
+  health_logs   HealthLog[]
+
+  @@map("children")
+}
+
+model Consultation {
+  id         String   @id @default(cuid())
+  child_id   String
+  category   String?  // FEVER | COUGH | SKIN | NUTRITION | GENERAL
+  risk_level String   @default("LOW") // LOW | MEDIUM | HIGH
+  title      String?
+  created_at DateTime @default(now())
+
+  child   Child                @relation(fields: [child_id], references: [id], onDelete: Cascade)
+  details ConsultationDetail[]
+
+  @@map("consultations")
+}
+
+model ConsultationDetail {
+  id              String   @id @default(cuid())
+  consultation_id String
+  role            String   // USER | AI
+  content         String   @db.Text
+  audio_url       String?
+  image_url       String?
+  created_at      DateTime @default(now())
+
+  consultation Consultation @relation(fields: [consultation_id], references: [id], onDelete: Cascade)
+
+  @@map("consultation_details")
+}
+
+model HealthLog {
+  id         String   @id @default(cuid())
+  child_id   String
+  log_type   String   // TEMPERATURE | WEIGHT | MEDICATION | SYMPTOM | NOTE
+  content    String   @db.Text
+  value      Float?
+  unit       String?
+  event_date DateTime @default(now())
+  created_at DateTime @default(now())
+
+  child Child @relation(fields: [child_id], references: [id], onDelete: Cascade)
+
+  @@map("health_logs")
+}
