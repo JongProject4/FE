@@ -1,0 +1,22 @@
+.childListScroll {
+  scrollbar-width: thin;
+  scrollbar-color: #52b788 rgba(0, 201, 255, 0.08);
+}
+
+.childListScroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.childListScroll::-webkit-scrollbar-track {
+  background: rgba(0, 201, 255, 0.08);
+  border-radius: 9999px;
+}
+
+.childListScroll::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #00c9ff 0%, #52b788 100%);
+  border-radius: 9999px;
+}
+
+.childListScroll::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #4a90d9 0%, #52b788 100%);
+}

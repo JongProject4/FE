@@ -50,10 +50,11 @@ body {
   background: var(--surface);
 }
 
-/* Scrollbar */
+/* Scrollbar*/
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--primary-mid); border-radius: 4px; }
+
 
 /* Safe area */
 .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
