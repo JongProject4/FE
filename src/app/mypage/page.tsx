@@ -39,12 +39,12 @@ export default function MyPage() {
           <Link
             href="/chat"
             aria-label="메인페이지로 이동"
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-[#FFFFFF] text-[#4A90D9] shadow-md active:scale-95 transition-transform"
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-[#FFFFFF] text-[#52B788] shadow-md active:scale-95 transition-transform"
           >
             <HomeIcon />
           </Link>
 
-          <h1 className="text-[24px] font-black tracking-tight text-[#4A90D9]">
+          <h1 className="text-[24px] font-black tracking-tight text-[#334155]">
             마이페이지
           </h1>
         </header>
@@ -62,13 +62,13 @@ export default function MyPage() {
             </div>
 
             <div className="flex-1">
-              <p className="text-[20px] font-black text-[#4A90D9]">
+              <p className="text-[20px] font-black text-[#475569]">
                 {mockUser.name}
               </p>
 
-              <p className="mt-2 text-[13px] font-semibold text-[#4A90D9]">
+              <p className="mt-2 text-[13px] font-semibold text-[#475569]">
                 전화번호 :{" "}
-                <span className="font-bold text-[#52B788]">
+                <span className="font-bold text-[#526277]">
                   {mockUser.phoneNumber}
                 </span>
               </p>
@@ -78,13 +78,12 @@ export default function MyPage() {
 
         <section className="flex min-h-0 flex-1 flex-col rounded-3xl bg-[#FFFFFF] p-5 shadow-xl">
           <div className="mb-4">
-            <h2 className="text-[18px] font-black text-[#4A90D9]">내 아이</h2>
-
+            <h2 className="text-[18px] font-black text-[#475569]">내 아이</h2>
             <Link
               href="/child-setup"
-              className="mt-3 inline-flex rounded-2xl bg-gradient-to-r from-[#00C9FF] to-[#52B788] px-4 py-3 text-[14px] font-black text-[#FFFFFF] shadow-lg active:scale-[0.98] transition-transform"
+              className="mt-3 inline-flex rounded-2xl bg-gradient-to-r bg-[rgba(82,183,136,0.12)] px-4 py-3 text-[14px] font-black text-[#52B788] shadow-lg active:scale-[0.98] transition-transform"
             >
-              아이 추가
+              +
             </Link>
           </div>
 
@@ -96,7 +95,7 @@ export default function MyPage() {
               >
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
-                    <p className="text-[16px] font-bold text-[#4A90D9]">
+                    <p className="text-[16px] font-bold text-[#526277]">
                       {child.name}
                     </p>
                   </div>
@@ -113,7 +112,7 @@ export default function MyPage() {
                     <button
                       aria-label={`${child.name} 삭제`}
                       onClick={() => openDeleteModal(child)}
-                      className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#4A90D9] text-[#FFFFFF] active:scale-[0.98] transition-transform"
+                      className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#52B788] text-[#FFFFFF] active:scale-[0.98] transition-transform"
                     >
                       <DeleteIcon />
                     </button>
