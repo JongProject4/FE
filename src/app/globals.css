@@ -4,22 +4,22 @@
 @tailwind utilities;
 
 :root {
-  --primary: #4A90D9;
-  --primary-light: #EBF4FF;
-  --primary-mid: #B8D9F5;
-  --primary-dark: #2E6FB5;
+  --primary: #52B788;
+  --primary-light: rgba(82, 183, 136, 0.12);
+  --primary-mid: #A7D9C4;
+  --primary-dark: #3D8E69;
   --green: #52B788;
   --green-light: #EAFBF1;
-  --bg: #F5F8FF;
+  --bg: #F4FCFB;
   --surface: #FFFFFF;
-  --text-primary: #1A2340;
-  --text-secondary: #6B7A99;
-  --text-muted: #A0AABF;
-  --border: rgba(74, 144, 217, 0.15);
+  --text-primary: #334155;
+  --text-secondary: #475569;
+  --text-muted: #94A3B8;
+  --border: rgba(82, 183, 136, 0.15);
   --radius: 20px;
   --radius-sm: 12px;
-  --shadow: 0 2px 16px rgba(74, 144, 217, 0.1);
-  --shadow-md: 0 4px 24px rgba(74, 144, 217, 0.15);
+  --shadow: 0 2px 16px rgba(82, 183, 136, 0.1);
+  --shadow-md: 0 4px 24px rgba(82, 183, 136, 0.15);
 }
 
 * {

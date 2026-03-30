@@ -11,22 +11,22 @@ const config: Config = {
     extend: {
       colors: {
         primary: {
-          DEFAULT: '#4A90D9',
-          light: '#EBF4FF',
-          mid: '#B8D9F5',
-          dark: '#2E6FB5',
+          DEFAULT: '#52B788',
+          light: 'rgba(82, 183, 136, 0.12)',
+          mid: '#A7D9C4',
+          dark: '#3D8E69',
         },
         medical: {
           green: '#52B788',
           'green-light': '#EAFBF1',
         },
         app: {
-          bg: '#F5F8FF',
+          bg: '#F4FCFB',
           surface: '#FFFFFF',
-          text: '#1A2340',
-          secondary: '#6B7A99',
-          muted: '#A0AABF',
-          border: 'rgba(74, 144, 217, 0.15)',
+          text: '#334155',
+          secondary: '#475569',
+          muted: '#94A3B8',
+          border: 'rgba(82, 183, 136, 0.15)',
         },
       },
       borderRadius: {

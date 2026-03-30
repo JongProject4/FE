@@ -73,7 +73,7 @@ export function CalendarPage({ children = SAMPLE_CHILDREN }: Props) {
   const dayEvents = selectedDate ? getEventsForDate(selectedDate) : []
 
   return (
-    <div className="flex flex-col h-dvh max-w-[430px] mx-auto bg-[#F5F8FF] overflow-hidden">
+    <div className="flex flex-col h-dvh max-w-[430px] mx-auto bg-[#F4FCFB] overflow-hidden">
 
       {/* ── 캘린더 뷰 ── */}
       {view === 'calendar' && (
@@ -93,15 +93,15 @@ export function CalendarPage({ children = SAMPLE_CHILDREN }: Props) {
       {view === 'day' && selectedDate && (
         <div className="flex flex-col h-full">
           {/* Back to calendar */}
-          <div className="flex items-center gap-3 px-4 py-3 bg-white border-b border-[rgba(74,144,217,0.12)] flex-shrink-0">
+          <div className="flex items-center gap-3 px-4 py-3 bg-white border-b border-[rgba(82,183,136,0.12)] flex-shrink-0">
             <button
               onClick={() => setView('calendar')}
-              className="w-8 h-8 rounded-full border border-[rgba(74,144,217,0.2)] flex items-center justify-center text-[#6B7A99] hover:bg-[#EBF4FF]">
+              className="w-8 h-8 rounded-full border border-[rgba(82,183,136,0.2)] flex items-center justify-center text-[#475569] hover:bg-[rgba(82,183,136,0.08)]">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                 <path d="M15 18l-6-6 6-6" />
               </svg>
             </button>
-            <h2 className="text-[15px] font-semibold text-[#1A2340]">
+            <h2 className="text-[15px] font-semibold text-[#334155]">
               {year}년 {month + 1}월
             </h2>
           </div>
@@ -146,22 +146,23 @@ export function CalendarPage({ children = SAMPLE_CHILDREN }: Props) {
               <polyline points="20 6 9 17 4 12" />
             </svg>
           </div>
-          <h2 className="text-[18px] font-semibold text-[#1A2340] mb-2">{successMsg.title}</h2>
-          <p className="text-[14px] text-[#6B7A99] mb-8">{successMsg.sub}</p>
+          <h2 className="text-[18px] font-semibold text-[#334155] mb-2">{successMsg.title}</h2>
+          <p className="text-[14px] text-[#475569] mb-8">{successMsg.sub}</p>
           <div className="flex gap-3 w-full max-w-[280px]">
             <button
               onClick={() => { setView('day') }}
-              className="flex-1 py-3 rounded-xl border border-[rgba(74,144,217,0.2)] text-[14px] font-medium text-[#4A90D9] hover:bg-[#EBF4FF] transition-colors">
+              className="flex-1 py-3 rounded-xl border border-[rgba(82,183,136,0.2)] text-[14px] font-medium text-[#52B788] hover:bg-[rgba(82,183,136,0.08)] transition-colors">
               날짜로
             </button>
             <button
               onClick={() => setView('calendar')}
-              className="flex-1 py-3 rounded-xl bg-[#4A90D9] text-white text-[14px] font-medium active:opacity-85 transition-opacity">
+              className="flex-1 py-3 rounded-xl bg-[#52B788] text-white text-[14px] font-medium active:opacity-85 transition-opacity">
               달력으로
             </button>
           </div>
         </div>
       )}
+      <BottomNav />
     </div>
   )
 }
