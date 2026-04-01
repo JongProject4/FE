@@ -6,27 +6,27 @@ import { motion, AnimatePresence } from 'framer-motion'
 
 const SLIDES = [
     {
-        title: '우리아이 건강 관리',
+        title: '우리아i 건강 관리',
         description: 'AIYA와 함께하는 스마트하고 건강한 일상으로의 시작',
-        bg: 'from-[#4A90D9] to-[#63A4FF]',
+        bg: 'from-[#52B788] to-[#74C69D]',
         icon: '✨'
     },
     {
         title: '24/7 AI 상담',
         description: '언제 어디서든 궁금한 점을 즉시 상담받으세요',
-        bg: 'from-[#63A4FF] to-[#00C9FF]',
+        bg: 'from-[#74C69D] to-[#52B788]',
         icon: '👨‍⚕️'
     },
     {
         title: '스마트한 일정 관리',
         description: '아이의 진료와 복약 일정을 꼼꼼하게 관리하세요',
-        bg: 'from-[#00C9FF] to-[#52B788]',
+        bg: 'from-[#52B788] to-[#40916C]',
         icon: '📅'
     },
     {
         title: '안전한 성장 기록',
         description: '소중한 우리 아이의 모든 정보를 안전하게 보관합니다',
-        bg: 'from-[#52B788] to-[#40916C]',
+        bg: 'from-[#40916C] to-[#2D6A4F]',
         icon: '🛡️'
     }
 ]
@@ -101,7 +101,7 @@ export default function OnboardingPage() {
                             </button>
                             <button
                                 onClick={nextSlide}
-                                className="flex-[2] py-4 bg-white text-[#4A90D9] rounded-2xl text-[16px] font-black shadow-xl active:scale-[0.98] transition-transform"
+                                className="flex-[2] py-4 bg-white text-[#52B788] rounded-2xl text-[16px] font-black shadow-xl active:scale-[0.98] transition-transform"
                             >
                                 다음으로
                             </button>
@@ -109,7 +109,7 @@ export default function OnboardingPage() {
                     ) : (
                         <button
                             onClick={() => router.push('/login')}
-                            className="w-full py-4 bg-white text-[#40916C] rounded-2xl text-[17px] font-black shadow-xl active:scale-[0.98] transition-all animate-pulse"
+                            className="w-full py-4 bg-white text-[#52B788] rounded-2xl text-[17px] font-black shadow-xl active:scale-[0.98] transition-all animate-pulse"
                         >
                             시작하기
                         </button>

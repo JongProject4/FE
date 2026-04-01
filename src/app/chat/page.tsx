@@ -112,14 +112,14 @@ export default function ChatPage() {
 
   if (status === 'loading') {
     return (
-      <div className="flex h-dvh items-center justify-center bg-[#F5F8FF]">
-        <div className="w-10 h-10 rounded-full border-[3px] border-[#4A90D9] border-t-transparent animate-spin" />
+      <div className="flex h-dvh items-center justify-center bg-[#F4FCFB]">
+        <div className="w-10 h-10 rounded-full border-[3px] border-[#52B788] border-t-transparent animate-spin" />
       </div>
     )
   }
 
   return (
-    <main className="flex flex-col h-dvh max-w-[430px] mx-auto bg-[#F5F8FF] overflow-hidden">
+    <main className="flex flex-col h-dvh max-w-[430px] mx-auto bg-[#F4FCFB] overflow-hidden">
       <ChatHeader />
 
       <div className="flex-1 overflow-y-auto" id="messages-container">
@@ -144,9 +144,10 @@ export default function ChatPage() {
         disabled={isLoading}
       />
 
-      <div className="text-center text-[10px] text-[#A0AABF] py-1 bg-white">
+      <div className="text-center text-[10px] text-[#94A3B8] py-1 bg-white">
         AI 상담은 의사 진료를 대체하지 않습니다
       </div>
+      <BottomNav />
     </main>
   )
 }

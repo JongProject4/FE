@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { mockUser } from "../mocks/user";
 import { mockChildren } from "../mocks/child";
+import { BottomNav } from "@/components/layout/BottomNav";
 
 type Child = {
   id: number;
@@ -138,6 +139,7 @@ export default function MyPage() {
           </button>
         </section>
       </main>
+      <BottomNav />
 
       {deleteTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(26,35,64,0.35)] px-5 dark:bg-black/60">
