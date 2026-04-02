@@ -1,9 +1,9 @@
 'use client'
-
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAppStore } from '@/lib/store'
 import toast from 'react-hot-toast'
+import { mockChildren } from '@/app/mocks/child'
 
 type Gender = 'MALE' | 'FEMALE'
 
@@ -12,16 +12,21 @@ type ChildLike = {
   name?: string | null
   birthdate?: string | null
   gender?: Gender | null
+  height?: number | string | null
   weight?: number | string | null
   allergies?: string | string[] | null
+  medical_history?: string | string[] | null
+  medicalHistory?: string | string[] | null
 }
 
 type FormState = {
   name: string
   birthdate: string
   gender: Gender
+  height: string
   weight: string
   allergies: string
+  medicalHistory: string
 }
 
 type ChildProfileFormProps = {
@@ -33,8 +38,10 @@ const EMPTY_FORM: FormState = {
   name: '',
   birthdate: '',
   gender: 'FEMALE',
+  height: '',
   weight: '',
   allergies: '',
+  medicalHistory: '',
 }
 
 function getTodayString() {
@@ -50,9 +57,14 @@ function normalizeBirthdate(value?: string | null) {
   return value.slice(0, 10)
 }
 
-function normalizeAllergies(value?: string | string[] | null) {
+function normalizeTextField(value?: string | string[] | null) {
   if (!value) return ''
   return Array.isArray(value) ? value.join(', ') : value
+}
+
+function normalizeGender(value?: string | null): Gender {
+  if (value === 'M' || value === 'MALE') return 'MALE'
+  return 'FEMALE'
 }
 
 export default function ChildProfileForm({
@@ -70,6 +82,19 @@ export default function ChildProfileForm({
   const hasChildren = children.length > 0
   const maxBirthdate = useMemo(() => getTodayString(), [])
   const targetChildId = childId ?? null
+  const editLoadErrorHandledRef = useRef(false)
+  const MY_PAGE_ROUTE = '/mypage'
+
+  const textInputClassName =
+    'block h-[52px] w-full appearance-none rounded-2xl border border-[rgba(82,183,136,0.2)] bg-[#F8FFFD] px-4 text-[16px] leading-[1.35] text-[#334155] placeholder-[#94A3B8] outline-none transition-colors focus:border-[#52B788] focus:ring-0 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500'
+
+  const handleEditLoadError = (message: string) => {
+    if (editLoadErrorHandledRef.current) return
+
+    editLoadErrorHandledRef.current = true
+    toast.error(message)
+    router.replace(MY_PAGE_ROUTE)
+  }
 
   useEffect(() => {
     if (!isEditMode) {
@@ -80,8 +105,7 @@ export default function ChildProfileForm({
 
     if (!targetChildId) {
       setLoading(false)
-      toast.error('수정할 아이를 찾을 수 없습니다.')
-      router.replace('/child-setup')
+      handleEditLoadError('수정할 아이를 찾을 수 없습니다.')
       return
     }
 
@@ -93,12 +117,19 @@ export default function ChildProfileForm({
       setForm({
         name: child.name ?? '',
         birthdate: normalizeBirthdate(child.birthdate),
-        gender: child.gender === 'MALE' ? 'MALE' : 'FEMALE',
+        gender: normalizeGender(child.gender),
+        height:
+          child.height === undefined || child.height === null || child.height === ''
+            ? ''
+            : String(child.height),
         weight:
           child.weight === undefined || child.weight === null || child.weight === ''
             ? ''
             : String(child.weight),
-        allergies: normalizeAllergies(child.allergies),
+        allergies: normalizeTextField(child.allergies),
+        medicalHistory: normalizeTextField(
+          child.medical_history ?? child.medicalHistory
+        ),
       })
     }
 
@@ -107,7 +138,22 @@ export default function ChildProfileForm({
     )
 
     if (localChild) {
-      applyChildToForm(localChild)
+      applyChildToForm(localChild as ChildLike)
+      setLoading(false)
+      return
+    }
+
+    const mockChild = mockChildren.find(
+      (child) => String(child.id) === String(targetChildId)
+    )
+
+    if (mockChild) {
+      applyChildToForm({
+        ...mockChild,
+        gender: normalizeGender(mockChild.gender),
+        medical_history:
+          'medicalHistory' in mockChild ? mockChild.medicalHistory : '',
+      })
       setLoading(false)
       return
     }
@@ -126,8 +172,7 @@ export default function ChildProfileForm({
         const fetchedChild = await res.json()
         applyChildToForm(fetchedChild)
       } catch {
-        toast.error('아이 정보를 불러오지 못했습니다.')
-        router.replace('/child-setup')
+        handleEditLoadError('아이 정보를 불러오지 못했습니다.')
       } finally {
         if (mounted) {
           setLoading(false)
@@ -140,11 +185,16 @@ export default function ChildProfileForm({
     return () => {
       mounted = false
     }
-  }, [isEditMode, targetChildId, children, router])
+  }, [isEditMode, targetChildId, children, router, handleEditLoadError])
 
   const handleSubmit = async () => {
     if (!form.name.trim() || !form.birthdate) {
       toast.error('이름과 생년월일을 입력해주세요.')
+      return
+    }
+
+    if (form.height !== '' && Number(form.height) < 0) {
+      toast.error('키는 0 이상으로 입력해주세요.')
       return
     }
 
@@ -165,8 +215,10 @@ export default function ChildProfileForm({
         name: form.name.trim(),
         birthdate: form.birthdate,
         gender: form.gender,
+        height: form.height === '' ? null : Number(form.height),
         weight: form.weight === '' ? null : Number(form.weight),
         allergies: form.allergies.trim(),
+        medical_history: form.medicalHistory.trim(),
       }
 
       const res = await fetch(
@@ -216,212 +268,258 @@ export default function ChildProfileForm({
   }
 
   return (
-    <main className="flex flex-col h-dvh max-w-[430px] mx-auto bg-[#F4FCFB] overflow-hidden">
-      <div className="flex items-center gap-3 px-4 py-3.5 bg-white border-b border-[rgba(82,183,136,0.12)] flex-shrink-0">
-        {(hasChildren || isEditMode) && (
-          <button
-            type="button"
-            onClick={() => router.back()}
-            className="w-9 h-9 bg-[#F4FCFB] rounded-[10px] flex items-center justify-center border border-[rgba(82,183,136,0.15)]"
+    <main className="mx-auto flex h-dvh max-w-[430px] flex-col overflow-hidden bg-[#F4FCFB] px-5 pt-6 pb-6 dark:bg-slate-950">
+      <header className="mb-6 flex items-center gap-3">
+        <button
+          type="button"
+          onClick={() => router.back()}
+          aria-label="이전 페이지로 이동"
+          className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-[#52B788] shadow-md transition-transform active:scale-95 dark:bg-slate-800 dark:text-[#52B788] dark:shadow-[0_4px_20px_rgba(0,0,0,0.35)]"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="h-5 w-5"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.4"
+            strokeLinecap="round"
+            strokeLinejoin="round"
           >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="#334155"
-              strokeWidth="2.5"
-            >
-              <path d="M15 18l-6-6 6-6" />
-            </svg>
-          </button>
-        )}
+            <path d="M15 18l-6-6 6-6" />
+          </svg>
+        </button>
 
-        <h1 className="text-[17px] font-bold text-[#334155]">
-          {isEditMode ? '아이 프로필 편집' : '아이 프로필 등록'}
+        <h1 className="text-[24px] font-black tracking-tight text-[#334155] dark:text-slate-100">
+          {isEditMode ? '아이 정보 수정' : '아이 등록'}
         </h1>
-      </div>
+      </header>
 
-      <div className="flex-1 overflow-y-auto px-5 py-5 flex flex-col gap-5">
-        {!isEditMode && hasChildren && (
-          <div className="bg-white rounded-[16px] p-4 border border-[rgba(82,183,136,0.12)]">
-            <p className="text-[11px] font-semibold text-[#94A3B8] uppercase tracking-wider mb-3">
-              등록된 아이
-            </p>
+      <section className="flex min-h-0 flex-1 flex-col rounded-3xl bg-white p-5 shadow-xl dark:bg-slate-900 dark:shadow-[0_8px_30px_rgba(0,0,0,0.35)]">
+        <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+          {!isEditMode && hasChildren && (
+            <div className="mb-5 rounded-2xl border border-[rgba(0,201,255,0.15)] bg-[rgba(255,255,255,0.8)] p-4 dark:border-slate-700 dark:bg-slate-800/80">
+              <p className="mb-3 text-[13px] font-black text-[#475569] dark:text-slate-100">
+                등록된 아이
+              </p>
 
-            <div className="flex flex-col gap-2">
-              {children.map((c) => {
-                const childIdValue = String(c.id)
-                const childName = c.name ?? ''
-                const childInitial = childName ? childName.charAt(0) : '?'
+              <div className="flex flex-col gap-2">
+                {children.map((c) => {
+                  const childIdValue = String(c.id)
+                  const childName = c.name ?? ''
+                  const childInitial = childName ? childName.charAt(0) : '?'
 
-                return (
-                  <div
-                    key={childIdValue}
-                    className="flex items-center gap-3 p-3 rounded-[12px] bg-[#F4FCFB] border border-transparent hover:border-[#52B788] transition-all"
-                  >
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSelectedChild(childIdValue)
-                        router.push('/chat')
-                      }}
-                      className="flex items-center gap-3 flex-1 text-left"
+                  return (
+                    <div
+                      key={childIdValue}
+                      className="flex items-center gap-3 rounded-2xl border border-[rgba(82,183,136,0.12)] bg-[#F4FCFB] p-3 dark:border-slate-700 dark:bg-slate-800"
                     >
-                      <div className="w-10 h-10 rounded-full bg-[#52B788] flex items-center justify-center text-white font-bold">
-                        {childInitial}
-                      </div>
-
-                      <div className="text-left">
-                        <div className="text-[14px] font-semibold text-[#334155]">
-                          {childName}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedChild(childIdValue)
+                          router.push('/chat')
+                        }}
+                        className="flex flex-1 items-center gap-3 text-left"
+                      >
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#52B788] text-white font-bold shadow-sm">
+                          {childInitial}
                         </div>
-                        <div className="text-[12px] text-[#475569]">
-                          {c.gender === 'FEMALE' ? '여아' : '남아'}
-                          {c.weight ? ` · ${c.weight}kg` : ''}
+
+                        <div className="min-w-0">
+                          <div className="truncate text-[15px] font-bold text-[#334155] dark:text-slate-100">
+                            {childName}
+                          </div>
+                          <div className="text-[12px] text-[#64748B] dark:text-slate-400">
+                            {c.gender === 'FEMALE' ? '여아' : '남아'}
+                            {c.weight ? ` · ${c.weight}kg` : ''}
+                          </div>
                         </div>
-                      </div>
-                    </button>
+                      </button>
 
-                    <button
-                      type="button"
-                      onClick={() =>
-                        router.push(`/child-edit?childId=${encodeURIComponent(childIdValue)}`)
-                      }
-                      className="px-3 py-2 text-[12px] font-semibold rounded-[10px] bg-white border border-[rgba(82,183,136,0.2)] text-[#52B788]"
-                    >
-                      편집
-                    </button>
-                  </div>
-                )
-              })}
-            </div>
-
-            <div className="flex items-center gap-3 mt-4 mb-1">
-              <div className="flex-1 h-px bg-[rgba(82,183,136,0.1)]" />
-              <span className="text-[11px] text-[#94A3B8]">새 아이 추가</span>
-              <div className="flex-1 h-px bg-[rgba(82,183,136,0.1)]" />
-            </div>
-          </div>
-        )}
-
-        {loading ? (
-          <div className="flex-1 min-h-[300px] flex items-center justify-center">
-            <div className="flex items-center gap-2 text-[#475569]">
-              <div className="w-5 h-5 border-2 border-[#52B788] border-t-transparent rounded-full animate-spin" />
-              정보를 불러오는 중...
-            </div>
-          </div>
-        ) : (
-          <>
-            <div>
-              <label className="text-[11px] font-semibold text-[#475569] uppercase tracking-wider block mb-2">
-                아이 이름 *
-              </label>
-              <input
-                type="text"
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-                placeholder="예: 김지아"
-                className="w-full px-4 py-3.5 bg-white border border-[rgba(82,183,136,0.2)] rounded-[14px] text-[15px] text-[#334155] placeholder-[#94A3B8] focus:border-[#52B788] transition-colors outline-none"
-              />
-            </div>
-
-            <div>
-              <label className="text-[11px] font-semibold text-[#475569] uppercase tracking-wider block mb-2">
-                생년월일 *
-              </label>
-              <input
-                type="date"
-                value={form.birthdate}
-                onChange={(e) => setForm({ ...form, birthdate: e.target.value })}
-                max={maxBirthdate}
-                className="w-full px-4 py-3.5 bg-white border border-[rgba(82,183,136,0.2)] rounded-[14px] text-[15px] text-[#334155] focus:border-[#52B788] transition-colors outline-none"
-              />
-            </div>
-
-            <div>
-              <label className="text-[11px] font-semibold text-[#475569] uppercase tracking-wider block mb-2">
-                성별 *
-              </label>
-              <div className="flex gap-3">
-                {([
-                  ['FEMALE', '여아 👧'],
-                  ['MALE', '남아 👦'],
-                ] as const).map(([val, label]) => (
-                  <button
-                    key={val}
-                    type="button"
-                    onClick={() => setForm({ ...form, gender: val })}
-                    className={`flex-1 py-3.5 rounded-[14px] text-[15px] font-semibold border transition-all ${
-                      form.gender === val
-                        ? 'bg-[rgba(82,183,136,0.12)] border-[#52B788] text-[#52B788]'
-                        : 'bg-white border-[rgba(82,183,136,0.2)] text-[#475569]'
-                    }`}
-                  >
-                    {label}
-                  </button>
-                ))}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          router.push(`/child-edit?childId=${encodeURIComponent(childIdValue)}`)
+                        }
+                        className="rounded-xl border border-[rgba(82,183,136,0.35)] bg-white px-3 py-2 text-[12px] font-bold text-[#52B788] transition-transform active:scale-[0.98] dark:border-slate-600 dark:bg-slate-800 dark:text-[#6EE7B7]"
+                      >
+                        편집
+                      </button>
+                    </div>
+                  )
+                })}
               </div>
             </div>
+          )}
 
-            <div>
-              <label className="text-[11px] font-semibold text-[#475569] uppercase tracking-wider block mb-2">
-                체중 (kg){' '}
-                <span className="text-[#94A3B8] normal-case font-normal">
-                  선택사항
-                </span>
-              </label>
-              <input
-                type="number"
-                value={form.weight}
-                onChange={(e) => setForm({ ...form, weight: e.target.value })}
-                placeholder="예: 15.5"
-                step="0.1"
-                min="0"
-                className="w-full px-4 py-3.5 bg-white border border-[rgba(82,183,136,0.2)] rounded-[14px] text-[15px] text-[#334155] placeholder-[#94A3B8] focus:border-[#52B788] transition-colors outline-none"
-              />
+          {loading ? (
+            <div className="flex min-h-[320px] items-center justify-center">
+              <div className="flex items-center gap-2 text-[14px] font-semibold text-[#475569] dark:text-slate-300">
+                <div className="h-5 w-5 rounded-full border-2 border-[#52B788] border-t-transparent animate-spin" />
+                정보를 불러오는 중...
+              </div>
             </div>
+          ) : (
+            <div className="space-y-4">
+              <div>
+                <label className="mb-2 block text-[13px] font-black text-[#475569] dark:text-slate-200">
+                  아이 이름 *
+                </label>
+                <input
+                  type="text"
+                  name="childName"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  enterKeyHint="next"
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  placeholder="예: 김지아"
+                  className={textInputClassName}
+                />
+              </div>
 
-            <div>
-              <label className="text-[11px] font-semibold text-[#475569] uppercase tracking-wider block mb-2">
-                알레르기{' '}
-                <span className="text-[#94A3B8] normal-case font-normal">
-                  선택사항
-                </span>
-              </label>
-              <input
-                type="text"
-                value={form.allergies}
-                onChange={(e) => setForm({ ...form, allergies: e.target.value })}
-                placeholder="예: 견과류, 유제품, 계란"
-                className="w-full px-4 py-3.5 bg-white border border-[rgba(82,183,136,0.2)] rounded-[14px] text-[15px] text-[#334155] placeholder-[#94A3B8] focus:border-[#52B788] transition-colors outline-none"
-              />
-              <p className="text-[11px] text-[#94A3B8] mt-1.5 ml-1">
-                AI 답변에 자동으로 반영됩니다
-              </p>
-            </div>
+              <div>
+                <label className="mb-2 block text-[13px] font-black text-[#475569] dark:text-slate-200">
+                  생년월일 *
+                </label>
+                <input
+                  type="date"
+                  value={form.birthdate}
+                  onChange={(e) => setForm({ ...form, birthdate: e.target.value })}
+                  max={maxBirthdate}
+                  className="w-full rounded-2xl border border-[rgba(82,183,136,0.2)] bg-[#F8FFFD] px-4 py-3.5 text-[15px] font-medium text-[#334155] outline-none transition-colors focus:border-[#52B788] dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                />
+              </div>
 
-            <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={saving || !form.name.trim() || !form.birthdate}
-              className="w-full py-4 bg-gradient-to-r from-[#52B788] to-[#6EE7B7] rounded-[16px] text-[16px] font-bold text-white active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed mt-2 shadow-md"
-            >
-              {saving ? (
-                <div className="flex items-center justify-center gap-2">
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  {isEditMode ? '수정 중...' : '저장 중...'}
+              <div>
+                <label className="mb-2 block text-[13px] font-black text-[#475569] dark:text-slate-200">
+                  성별 *
+                </label>
+                <div className="flex gap-3">
+                  {([
+                    ['FEMALE', '여아'],
+                    ['MALE', '남아'],
+                  ] as const).map(([val, label]) => (
+                    <button
+                      key={val}
+                      type="button"
+                      onClick={() => setForm({ ...form, gender: val })}
+                      className={`flex-1 rounded-2xl py-3.5 text-[15px] font-black transition-all ${
+                        form.gender === val
+                          ? 'border border-[#52B788] bg-[rgba(82,183,136,0.12)] text-[#52B788] shadow-sm'
+                          : 'border border-[rgba(82,183,136,0.2)] bg-white text-[#475569] dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
                 </div>
-              ) : isEditMode ? (
-                '수정 완료하기'
-              ) : (
-                '저장하고 상담 시작하기'
-              )}
-            </button>
-          </>
-        )}
-      </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="mb-2 block text-[13px] font-black text-[#475569] dark:text-slate-200">
+                    키
+                    <span className="ml-1 text-[12px] font-medium text-[#94A3B8] dark:text-slate-400">
+                      선택사항
+                    </span>
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      value={form.height}
+                      onChange={(e) => setForm({ ...form, height: e.target.value })}
+                      placeholder="예: 95.5"
+                      step="0.1"
+                      min="0"
+                      className="w-full rounded-2xl border border-[rgba(82,183,136,0.2)] bg-[#F8FFFD] px-4 py-3.5 text-[15px] font-medium text-[#334155] placeholder-[#94A3B8] outline-none transition-colors focus:border-[#52B788] dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
+                    />
+                    <span className="text-[14px] font-bold text-[#475569] dark:text-slate-200">
+                      cm
+                    </span>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-[13px] font-black text-[#475569] dark:text-slate-200">
+                    체중 (kg)
+                    <span className="ml-1 text-[12px] font-medium text-[#94A3B8] dark:text-slate-400">
+                      선택사항
+                    </span>
+                  </label>
+                  <input
+                    type="number"
+                    value={form.weight}
+                    onChange={(e) => setForm({ ...form, weight: e.target.value })}
+                    placeholder="예: 15.5"
+                    step="0.1"
+                    min="0"
+                    className="w-full rounded-2xl border border-[rgba(82,183,136,0.2)] bg-[#F8FFFD] px-4 py-3.5 text-[15px] font-medium text-[#334155] placeholder-[#94A3B8] outline-none transition-colors focus:border-[#52B788] dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="mb-2 block text-[13px] font-black text-[#475569] dark:text-slate-200">
+                  알레르기
+                  <span className="ml-1 text-[12px] font-medium text-[#94A3B8] dark:text-slate-400">
+                    선택사항
+                  </span>
+                </label>
+                <input
+                  type="text"
+                  value={form.allergies}
+                  onChange={(e) => setForm({ ...form, allergies: e.target.value })}
+                  placeholder="예: 견과류, 유제품, 계란"
+                  className="w-full rounded-2xl border border-[rgba(82,183,136,0.2)] bg-[#F8FFFD] px-4 py-3.5 text-[15px] font-medium text-[#334155] placeholder-[#94A3B8] outline-none transition-colors focus:border-[#52B788] dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
+                />
+                <p className="mt-1.5 ml-1 text-[11px] font-medium text-[#94A3B8] dark:text-slate-400">
+                  여러 항목은 쉼표(,)로 구분해서 입력해주세요.
+                </p>
+              </div>
+
+              <div>
+                <label className="mb-2 block text-[13px] font-black text-[#475569] dark:text-slate-200">
+                  과거 병력 / 지병
+                  <span className="ml-1 text-[12px] font-medium text-[#94A3B8] dark:text-slate-400">
+                    선택사항
+                  </span>
+                </label>
+                <input
+                  type="text"
+                  value={form.medicalHistory}
+                  onChange={(e) => setForm({ ...form, medicalHistory: e.target.value })}
+                  placeholder="예: 천식, 아토피"
+                  className="w-full rounded-2xl border border-[rgba(82,183,136,0.2)] bg-[#F8FFFD] px-4 py-3.5 text-[15px] font-medium text-[#334155] placeholder-[#94A3B8] outline-none transition-colors focus:border-[#52B788] dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
+                />
+                <p className="mt-1.5 ml-1 text-[11px] font-medium text-[#94A3B8] dark:text-slate-400">
+                  여러 항목은 쉼표(,)로 구분해서 입력해주세요.
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <button
+          type="button"
+          onClick={handleSubmit}
+          disabled={saving || !form.name.trim() || !form.birthdate}
+          className="mt-4 w-full rounded-2xl bg-[rgba(82,183,136,0.12)] py-4 text-[15px] font-black text-[#52B788] shadow-lg transition-transform active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 dark:bg-[rgba(82,183,136,0.18)] dark:text-[#6EE7B7] dark:shadow-[0_6px_20px_rgba(0,0,0,0.25)]"
+        >
+          {saving ? (
+            <div className="flex items-center justify-center gap-2">
+              <div className="h-5 w-5 rounded-full border-2 border-[#52B788] border-t-transparent animate-spin dark:border-[#6EE7B7] dark:border-t-transparent" />
+              {isEditMode ? '수정 중...' : '저장 중...'}
+            </div>
+          ) : isEditMode ? (
+            '수정 완료하기'
+          ) : (
+            '저장하고 상담 시작하기'
+          )}
+        </button>
+      </section>
     </main>
   )
 }
