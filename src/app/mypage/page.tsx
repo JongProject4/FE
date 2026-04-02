@@ -106,7 +106,7 @@ export default function MyPage() {
 
                   <div className="flex gap-2 self-end sm:self-auto">
                     <Link
-                      href={`/child-setup?mode=edit&id=${child.id}`}
+                      href={`/child-edit?childId=${child.id}`}
                       aria-label={`${child.name} 편집`}
                       className="flex h-10 w-10 items-center justify-center rounded-xl border border-[rgba(82,183,136,0.35)] bg-white text-[#52B788] transition-transform active:scale-[0.98] dark:border-slate-600 dark:bg-slate-800 dark:text-[#6EE7B7]"
                     >
