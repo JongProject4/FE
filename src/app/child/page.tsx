@@ -19,14 +19,36 @@ type ChildLike = {
   medicalHistory?: string | string[] | null;
 };
 
+type ChildSource = Partial<ChildLike> & {
+  id: string | number;
+};
+
 function normalizeGender(value?: string | null) {
+  if (!value) return "등록된 정보 없음";
   if (value === "M" || value === "MALE") return "남아";
-  return "여아";
+  if (value === "F" || value === "FEMALE") return "여아";
+  return "등록된 정보 없음";
 }
 
 function formatTextField(value?: string | string[] | null) {
   if (!value) return "등록된 정보 없음";
   return Array.isArray(value) ? value.join(", ") : value;
+}
+
+function normalizeChild(source?: ChildSource): ChildLike | undefined {
+  if (!source) return undefined;
+
+  return {
+    id: source.id,
+    name: source.name ?? null,
+    birthdate: source.birthdate ?? null,
+    gender: source.gender ?? null,
+    height: source.height ?? null,
+    weight: source.weight ?? null,
+    allergies: source.allergies ?? null,
+    medicalHistory: source.medicalHistory ?? null,
+    medical_history: source.medical_history ?? null,
+  };
 }
 
 function InfoRow({
@@ -61,9 +83,14 @@ export default function ChildDetailPage() {
 
   const childId = searchParams.get("childId");
 
-  const child = useMemo(() => {
+  const child = useMemo<ChildLike | undefined>(() => {
     if (!childId) return undefined;
-    return mockChildren.find((item) => String(item.id) === String(childId));
+
+    const found = mockChildren.find(
+      (item) => String(item.id) === String(childId)
+    ) as ChildSource | undefined;
+
+    return normalizeChild(found);
   }, [childId]);
 
   const handleEdit = () => {
@@ -160,7 +187,7 @@ export default function ChildDetailPage() {
         <section className="flex min-h-0 flex-1 flex-col rounded-3xl bg-white p-5 shadow-xl dark:bg-slate-900 dark:shadow-[0_8px_30px_rgba(0,0,0,0.35)]">
           <div className="mb-4">
             <h2 className="text-[18px] font-black text-[#475569] dark:text-slate-100">
-              {child.name}
+              {child.name ?? "등록된 정보 없음"}
             </h2>
             <p className="mt-1 text-[13px] font-medium text-[#94A3B8] dark:text-slate-400">
               등록된 아이 정보
@@ -171,10 +198,7 @@ export default function ChildDetailPage() {
             <div className="rounded-2xl border border-[rgba(82,183,136,0.15)] bg-[rgba(255,255,255,0.85)] px-4 dark:border-slate-700 dark:bg-slate-800/80">
               <InfoRow label="이름" value={child.name ?? ""} />
               <InfoRow label="생년월일" value={child.birthdate ?? ""} />
-              <InfoRow
-                label="성별"
-                value={normalizeGender(child.gender as Gender | undefined)}
-              />
+              <InfoRow label="성별" value={normalizeGender(child.gender)} />
               <InfoRow
                 label="키 / 몸무게"
                 value={`${child.height ?? "-"}cm / ${child.weight ?? "-"}kg`}
@@ -186,7 +210,7 @@ export default function ChildDetailPage() {
               <InfoRow
                 label="과거 병력 / 지병"
                 value={formatTextField(
-                  child.medicalHistory ?? child.medicalHistory
+                  child.medicalHistory ?? child.medical_history
                 )}
                 multiline
               />
@@ -232,13 +256,14 @@ export default function ChildDetailPage() {
 
             <p className="mt-3 text-center text-[14px] leading-6 text-[#475569] dark:text-slate-300">
               <span className="font-black text-[#334155] dark:text-slate-100">
-                {deleteTarget.name}
+                {deleteTarget.name ?? "선택한 아이"}
               </span>{" "}
               정보를 삭제하면 목록에서 사라집니다.
             </p>
 
             <div className="mt-6 flex gap-3">
               <button
+                type="button"
                 onClick={closeDeleteModal}
                 className="flex-1 rounded-2xl border border-[rgba(82,183,136,0.35)] bg-white py-3 text-[14px] font-bold text-[#52B788] transition-transform active:scale-[0.98] dark:border-slate-600 dark:bg-slate-800 dark:text-[#6EE7B7]"
               >
@@ -246,6 +271,7 @@ export default function ChildDetailPage() {
               </button>
 
               <button
+                type="button"
                 onClick={handleDeleteConfirm}
                 className="flex-1 rounded-2xl bg-[#52B788] py-3 text-[14px] font-black text-white shadow-lg transition-transform active:scale-[0.98] dark:bg-[#52B788]"
               >
