@@ -4,7 +4,7 @@ import styles from "./page.module.css";
 import Image from "next/image";
 import Link from "next/link";
 import { mockUser } from "../mocks/user";
-import { mockChildren } from "../mocks/child";
+import { mockChildren } from "../mocks/children";
 import { BottomNav } from "@/components/layout/BottomNav";
 
 type Child = {
@@ -98,11 +98,14 @@ export default function MyPage() {
                 className="rounded-2xl border border-[rgba(0,201,255,0.15)] bg-[rgba(255,255,255,0.8)] p-4 dark:border-slate-700 dark:bg-slate-800/80"
               >
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
+                  <Link
+                    href={`/child?childId=${child.id}`}
+                    className="block flex-1 rounded-xl outline-none transition-opacity hover:opacity-80 focus-visible:ring-2 focus-visible:ring-[#52B788]"
+                  >
                     <p className="text-[16px] font-bold text-[#526277] dark:text-slate-100">
                       {child.name}
                     </p>
-                  </div>
+                  </Link>
 
                   <div className="flex gap-2 self-end sm:self-auto">
                     <Link
@@ -142,9 +145,9 @@ export default function MyPage() {
       <BottomNav />
 
       {deleteTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(26,35,64,0.35)] px-5 dark:bg-black/60">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(51,65,85,0.35)] px-5 dark:bg-black/60">
           <div className="w-full max-w-[340px] rounded-3xl bg-white p-6 shadow-2xl dark:bg-slate-900 dark:shadow-[0_12px_40px_rgba(0,0,0,0.45)]">
-            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-[rgba(0,201,255,0.10)] shadow-md dark:bg-slate-800">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-[rgba(82,183,136,0.12)] shadow-md dark:bg-slate-800">
               <Image
                 src="/logo.png"
                 alt="로고"
@@ -154,13 +157,15 @@ export default function MyPage() {
               />
             </div>
 
-            <h3 className="text-center text-[20px] font-black text-[#4A90D9] dark:text-slate-100">
+            <h3 className="text-center text-[20px] font-black text-[#334155] dark:text-slate-100">
               아이 정보를 삭제할까요?
             </h3>
 
-            <p className="mt-3 text-center text-[14px] leading-6 text-[#4A90D9] dark:text-slate-300">
-              <span className="font-black dark:text-slate-100">{deleteTarget.name}</span> 정보를 삭제하면
-              목록에서 사라집니다.
+            <p className="mt-3 text-center text-[14px] leading-6 text-[#475569] dark:text-slate-300">
+              <span className="font-black text-[#334155] dark:text-slate-100">
+                {deleteTarget.name}
+              </span>{" "}
+              정보를 삭제하면 목록에서 사라집니다.
             </p>
 
             <div className="mt-6 flex gap-3">
@@ -173,7 +178,7 @@ export default function MyPage() {
 
               <button
                 onClick={handleDeleteConfirm}
-                className="flex-1 rounded-2xl bg-gradient-to-r from-[#4A90D9] to-[#00C9FF] py-3 text-[14px] font-black text-white shadow-lg transition-transform active:scale-[0.98]"
+                className="flex-1 rounded-2xl bg-[#52B788] py-3 text-[14px] font-black text-white shadow-lg transition-transform active:scale-[0.98] dark:bg-[#52B788]"
               >
                 삭제
               </button>
