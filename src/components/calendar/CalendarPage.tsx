@@ -77,7 +77,10 @@ export function CalendarPage({ children = SAMPLE_CHILDREN }: Props) {
 
       {/* ── 캘린더 뷰 ── */}
       {view === 'calendar' && (
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto px-5 pt-6 pb-6 mt-2">
+          <h1 className="text-[24px] font-black tracking-tight text-[#334155] mb-5">
+            캘린더
+          </h1>
           <CalendarGrid
             year={year}
             month={month}

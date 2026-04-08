@@ -48,26 +48,26 @@ export function CalendarGrid({ year, month, events, onDayClick, onPrevMonth, onN
   }, [year, month])
 
   return (
-    <div className="flex flex-col bg-white">
+    <div className="flex flex-col bg-white rounded-3xl shadow-xl overflow-hidden pb-4">
       {/* Month navigation */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-[rgba(74,144,217,0.12)]">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-[rgba(82,183,136,0.12)]">
         <button
           onClick={onPrevMonth}
-          className="w-8 h-8 rounded-full border border-[rgba(74,144,217,0.2)] flex items-center justify-center text-[#6B7A99] hover:bg-[#EBF4FF] active:scale-95 transition-all"
+          className="w-8 h-8 rounded-full border border-[rgba(82,183,136,0.2)] flex items-center justify-center text-[#475569] hover:bg-[rgba(82,183,136,0.08)] active:scale-95 transition-all"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-            <path d="M15 18l-6-6 6-6"/>
+            <path d="M15 18l-6-6 6-6" />
           </svg>
         </button>
-        <h2 className="text-[16px] font-semibold text-[#1A2340]">
+        <h2 className="text-[16px] font-semibold text-[#334155]">
           {year}년 {month + 1}월
         </h2>
         <button
           onClick={onNextMonth}
-          className="w-8 h-8 rounded-full border border-[rgba(74,144,217,0.2)] flex items-center justify-center text-[#6B7A99] hover:bg-[#EBF4FF] active:scale-95 transition-all"
+          className="w-8 h-8 rounded-full border border-[rgba(82,183,136,0.2)] flex items-center justify-center text-[#475569] hover:bg-[rgba(82,183,136,0.08)] active:scale-95 transition-all"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-            <path d="M9 18l6-6-6-6"/>
+            <path d="M9 18l6-6-6-6" />
           </svg>
         </button>
       </div>
@@ -77,9 +77,8 @@ export function CalendarGrid({ year, month, events, onDayClick, onPrevMonth, onN
         {WEEKDAYS.map((day, i) => (
           <div
             key={day}
-            className={`text-center text-[11px] font-semibold py-1 ${
-              i === 0 ? 'text-[#E24B4A]' : i === 6 ? 'text-[#4A90D9]' : 'text-[#A0AABF]'
-            }`}
+            className={`text-center text-[11px] font-semibold py-1 ${i === 0 ? 'text-[#E24B4A]' : i === 6 ? 'text-[#4A90D9]' : 'text-[#94A3B8]'
+              }`}
           >
             {day}
           </div>
@@ -100,29 +99,27 @@ export function CalendarGrid({ year, month, events, onDayClick, onPrevMonth, onN
             <button
               key={idx}
               onClick={() => cell.isCurrentMonth && onDayClick(cell.date)}
-              className={`min-h-[52px] rounded-[8px] p-1 flex flex-col items-center transition-colors ${
-                cell.isCurrentMonth
-                  ? 'hover:bg-[#EBF4FF] active:scale-95 cursor-pointer'
-                  : 'cursor-default opacity-30'
-              }`}
+              className={`min-h-[52px] rounded-[8px] p-1 flex flex-col items-center transition-colors ${cell.isCurrentMonth
+                ? 'hover:bg-[rgba(82,183,136,0.08)] active:scale-95 cursor-pointer'
+                : 'cursor-default opacity-30'
+                }`}
             >
               <div
-                className={`w-7 h-7 flex items-center justify-center text-[13px] leading-none mb-1 ${
-                  today
-                    ? 'rounded-full bg-[#4A90D9] text-white font-semibold'
-                    : dow === 0
+                className={`w-7 h-7 flex items-center justify-center text-[13px] leading-none mb-1 ${today
+                  ? 'rounded-full bg-[#52B788] text-white font-semibold'
+                  : dow === 0
                     ? 'text-[#E24B4A]'
                     : dow === 6
-                    ? 'text-[#4A90D9]'
-                    : 'text-[#1A2340]'
-                }`}
+                      ? 'text-[#4A90D9]'
+                      : 'text-[#334155]'
+                  }`}
               >
                 {cell.date.getDate()}
               </div>
               {/* Event dots */}
               <div className="flex gap-[3px]">
-                {hasClinc && <div className="w-[5px] h-[5px] rounded-full bg-[#4A90D9]" />}
-                {hasMed && <div className="w-[5px] h-[5px] rounded-full bg-[#52B788]" />}
+                {hasClinc && <div className="w-[5px] h-[5px] rounded-full bg-[#52B788]" />}
+                {hasMed && <div className="w-[5px] h-[5px] rounded-full bg-[#6EE7B7]" />}
               </div>
             </button>
           )
