@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAppStore } from '@/lib/store'
 import toast from 'react-hot-toast'
-import { mockChildren } from '@/app/mocks/child'
+import { mockChildren } from '@/app/mocks/children'
 
 type Gender = 'MALE' | 'FEMALE'
 
