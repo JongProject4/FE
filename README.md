@@ -1,12 +1,14 @@
-# 소아과 AI 어시스턴트
+# 소아과 AI 어시스턴트 (AIYA)
 
-아이의 건강을 위한 AI 기반 소아과 상담 파트너 — Gemini/Claude 스타일 모바일 퍼스트 웹앱
+아이의 건강을 위한 AI 기반 소아과 상담 파트너 — 모바일 퍼스트 웹앱
+
+🔗 **배포 URL: https://pediatric-ai-beige.vercel.app**
 
 ---
 
 ## 주요 기능
 
-- **소셜 로그인**: Google, Apple, 카카오 (비밀번호 없음)
+- **소셜 로그인**: Google OAuth2 (백엔드 JWT 인증)
 - **AI 채팅**: Claude Sonnet 기반, 스트리밍 응답
 - **아이 프로필**: 복수 아이 관리 (이름, 생년월일, 성별, 체중, 알레르기)
 - **개인화 상담**: 아이 데이터가 AI 컨텍스트에 자동 반영
@@ -24,12 +26,12 @@
 | 영역 | 기술 |
 |------|------|
 | Frontend | Next.js 14 (App Router), Tailwind CSS |
-| Auth | NextAuth.js v4 (Google, Apple, Kakao) |
+| Auth | Google OAuth2 → JWT (Spring Boot 백엔드) |
+| Backend | Spring Boot 3.5, Java 21, MySQL |
 | AI | Anthropic Claude Sonnet (Streaming) |
-| DB | PostgreSQL + Prisma ORM |
 | State | Zustand (persist) |
 | Notifications | Firebase Cloud Messaging |
-| Deploy | Vercel (권장) |
+| Deploy | Vercel (Frontend), 백엔드 별도 |
 
 ---
 
