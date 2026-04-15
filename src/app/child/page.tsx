@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
-import { mockChildren } from "../mocks/children";
+import { getChild as fetchChildApi, deleteChild as deleteChildApi, type ChildResponse } from '@/lib/api';
+import toast from 'react-hot-toast';
 
 type Gender = "MALE" | "FEMALE" | "M" | "F";
 
@@ -66,9 +67,8 @@ function InfoRow({
         {label}
       </p>
       <p
-        className={`text-[16px] font-bold text-[#334155] dark:text-slate-100 ${
-          multiline ? "whitespace-pre-line leading-7" : ""
-        }`}
+        className={`text-[16px] font-bold text-[#334155] dark:text-slate-100 ${multiline ? "whitespace-pre-line leading-7" : ""
+          }`}
       >
         {value?.trim() ? value : "등록된 정보 없음"}
       </p>
@@ -76,21 +76,32 @@ function InfoRow({
   );
 }
 
-export default function ChildDetailPage() {
+function ChildDetailContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [deleteTarget, setDeleteTarget] = useState<ChildLike | null>(null);
+  const [child, setChild] = useState<ChildLike | undefined>(undefined);
+  const [loading, setLoading] = useState(true);
 
   const childId = searchParams.get("childId");
 
-  const child = useMemo<ChildLike | undefined>(() => {
-    if (!childId) return undefined;
+  useEffect(() => {
+    if (!childId) {
+      setLoading(false);
+      return;
+    }
 
-    const found = mockChildren.find(
-      (item) => String(item.id) === String(childId)
-    ) as ChildSource | undefined;
-
-    return normalizeChild(found);
+    const loadChild = async () => {
+      try {
+        const data = await fetchChildApi(Number(childId));
+        setChild(normalizeChild(data));
+      } catch {
+        console.warn('아이 정보 로드 실패');
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadChild();
   }, [childId]);
 
   const handleEdit = () => {
@@ -107,10 +118,15 @@ export default function ChildDetailPage() {
     setDeleteTarget(null);
   };
 
-  const handleDeleteConfirm = () => {
+  const handleDeleteConfirm = async () => {
     if (!deleteTarget) return;
 
-    // 실제 삭제 로직 연결 전 임시 처리
+    try {
+      await deleteChildApi(Number(deleteTarget.id));
+      toast.success(`${deleteTarget.name ?? '아이'} 정보가 삭제되었습니다.`);
+    } catch {
+      toast.error('삭제에 실패했습니다.');
+    }
     setDeleteTarget(null);
     router.push("/mypage");
   };
@@ -282,5 +298,19 @@ export default function ChildDetailPage() {
         </div>
       )}
     </>
+  );
+}
+
+export default function ChildDetailPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex h-dvh items-center justify-center bg-[#F4FCFB]">
+          <div className="w-10 h-10 rounded-full border-[3px] border-[#52B788] border-t-transparent animate-spin" />
+        </div>
+      }
+    >
+      <ChildDetailContent />
+    </Suspense>
   );
 }

@@ -1,10 +1,10 @@
 'use client'
 // src/app/login/page.tsx
-import { signIn, useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
+import { getAccessToken, getGoogleLoginUrl } from '@/lib/api'
 
 const SLIDES = [
   {
@@ -28,14 +28,20 @@ const SLIDES = [
 ]
 
 export default function LoginPage() {
-  const { data: session, status } = useSession()
   const router = useRouter()
-  const [loading, setLoading] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
   const [step, setStep] = useState(0) // 0, 1, 2 are slides, 3 is login
+  const [checking, setChecking] = useState(true)
 
+  // 이미 로그인되어 있으면 채팅으로 이동
   useEffect(() => {
-    if (status === 'authenticated') router.replace('/chat')
-  }, [status, router])
+    const token = getAccessToken()
+    if (token) {
+      router.replace('/chat')
+    } else {
+      setChecking(false)
+    }
+  }, [router])
 
   // Auto-play for onboarding steps
   useEffect(() => {
@@ -47,16 +53,13 @@ export default function LoginPage() {
     }
   }, [step])
 
-  const handleLogin = async (provider: string) => {
-    setLoading(provider)
-    try {
-      await signIn(provider, { callbackUrl: '/chat' })
-    } catch {
-      setLoading(null)
-    }
+  const handleGoogleLogin = () => {
+    setLoading(true)
+    // 백엔드 Spring Boot의 OAuth2 로그인 URL로 리다이렉트
+    window.location.href = getGoogleLoginUrl()
   }
 
-  if (status === 'loading') {
+  if (checking) {
     return (
       <div className="flex h-dvh items-center justify-center bg-[#F5F8FF]">
         <div className="w-10 h-10 rounded-full border-3 border-[#4A90D9] border-t-transparent animate-spin" />
@@ -139,14 +142,14 @@ export default function LoginPage() {
                 아이의 건강을 위한<br />스마트한 의료 상담 파트너
               </p>
 
-              {/* Login Buttons */}
+              {/* Login Button - Google Only */}
               <div className="w-full flex flex-col gap-3">
                 <button
-                  onClick={() => handleLogin('google')}
-                  disabled={!!loading}
-                  className="w-full flex items-center justify-center gap-3 px-4 py-[14px] bg-white border border-[rgba(74,144,217,0.2)] rounded-2xl text-[15px] font-semibold text-[#1A2340] active:scale-[0.98] transition-all disabled:opacity-60"
+                  onClick={handleGoogleLogin}
+                  disabled={loading}
+                  className="w-full flex items-center justify-center gap-3 px-4 py-[16px] bg-white border border-[rgba(74,144,217,0.2)] rounded-2xl text-[15px] font-semibold text-[#1A2340] shadow-sm hover:shadow-md active:scale-[0.98] transition-all disabled:opacity-60"
                 >
-                  {loading === 'google' ? (
+                  {loading ? (
                     <div className="w-5 h-5 border-2 border-[#4A90D9] border-t-transparent rounded-full animate-spin" />
                   ) : (
                     <svg width="20" height="20" viewBox="0 0 24 24">
@@ -157,46 +160,6 @@ export default function LoginPage() {
                     </svg>
                   )}
                   Google로 계속하기
-                </button>
-
-                <button
-                  onClick={() => handleLogin('apple')}
-                  disabled={!!loading}
-                  className="w-full flex items-center justify-center gap-3 px-4 py-[14px] bg-[#1A2340] rounded-2xl text-[15px] font-semibold text-white active:scale-[0.98] transition-all disabled:opacity-60"
-                >
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
-                    <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z" />
-                  </svg>
-                  Apple로 계속하기
-                </button>
-
-                <button
-                  onClick={() => handleLogin('kakao')}
-                  disabled={!!loading}
-                  className="w-full flex items-center justify-center gap-3 px-4 py-[14px] bg-[#FEE500] rounded-2xl text-[15px] font-semibold text-[#191919] active:scale-[0.98] transition-all disabled:opacity-60"
-                >
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="#191919">
-                    <path d="M12 3C6.48 3 2 6.59 2 11.01c0 2.82 1.83 5.29 4.58 6.72L5.5 21.5l4.64-2.74c.61.08 1.23.13 1.86.13 5.52 0 10-3.59 10-8.01S17.52 3 12 3z" />
-                  </svg>
-                  카카오로 계속하기
-                </button>
-
-                <div className="flex items-center gap-4 my-2">
-                  <div className="h-[1px] flex-1 bg-[rgba(74,144,217,0.1)]" />
-                  <span className="text-[12px] text-[#A0AABF]">또는</span>
-                  <div className="h-[1px] flex-1 bg-[rgba(74,144,217,0.1)]" />
-                </div>
-
-                <button
-                  onClick={() => handleLogin('credentials')}
-                  disabled={!!loading}
-                  className="w-full flex items-center justify-center gap-3 px-4 py-[14px] bg-[#F5F8FF] border border-dashed border-[#4A90D9] rounded-2xl text-[15px] font-semibold text-[#4A90D9] active:scale-[0.98] transition-all disabled:opacity-60"
-                >
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                    <circle cx="12" cy="7" r="4" />
-                  </svg>
-                  게스트로 로그인하기 (임시)
                 </button>
               </div>
             </div>

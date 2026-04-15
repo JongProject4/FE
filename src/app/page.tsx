@@ -1,10 +1,8 @@
 // src/app/page.tsx
 import { redirect } from 'next/navigation'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
 
-export default async function HomePage() {
-  const session = await getServerSession(authOptions)
-  if (session) redirect('/chat')
-  else redirect('/onboarding')
+export default function HomePage() {
+  // 항상 onboarding으로 리다이렉트
+  // 클라이언트에서 JWT 토큰 확인 후 chat으로 이동
+  redirect('/login')
 }

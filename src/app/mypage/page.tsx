@@ -1,11 +1,19 @@
 'use client'
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import styles from "./page.module.css";
 import Image from "next/image";
 import Link from "next/link";
-import { mockUser } from "../mocks/user";
-import { mockChildren } from "../mocks/children";
+import { useRouter } from "next/navigation";
 import { BottomNav } from "@/components/layout/BottomNav";
+import {
+  getMe,
+  getChildren as fetchChildrenApi,
+  deleteChild as deleteChildApi,
+  removeAccessToken,
+  type CurrentUser,
+  type ChildResponse,
+} from '@/lib/api';
+import toast from 'react-hot-toast';
 
 type Child = {
   id: number;
@@ -13,8 +21,30 @@ type Child = {
 };
 
 export default function MyPage() {
-  const [children, setChildren] = useState<Child[]>(mockChildren);
+  const router = useRouter();
+  const [user, setUser] = useState<CurrentUser | null>(null);
+  const [children, setChildren] = useState<Child[]>([]);
   const [deleteTarget, setDeleteTarget] = useState<Child | null>(null);
+  const [loadingUser, setLoadingUser] = useState(true);
+
+  // 백엔드에서 사용자 정보 및 아이 목록 로드
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const [userData, childrenData] = await Promise.all([
+          getMe(),
+          fetchChildrenApi(),
+        ]);
+        setUser(userData);
+        setChildren(childrenData.map((c: ChildResponse) => ({ id: c.id, name: c.name })));
+      } catch {
+        console.warn('백엔드 데이터 로드 실패');
+      } finally {
+        setLoadingUser(false);
+      }
+    };
+    loadData();
+  }, []);
 
   const openDeleteModal = (child: Child) => {
     setDeleteTarget(child);
@@ -24,13 +54,24 @@ export default function MyPage() {
     setDeleteTarget(null);
   };
 
-  const handleDeleteConfirm = () => {
+  const handleDeleteConfirm = async () => {
     if (!deleteTarget) return;
 
-    setChildren((prev) =>
-      prev.filter((child) => child.id !== deleteTarget.id)
-    );
+    try {
+      await deleteChildApi(deleteTarget.id);
+      setChildren((prev) =>
+        prev.filter((child) => child.id !== deleteTarget.id)
+      );
+      toast.success(`${deleteTarget.name} 정보가 삭제되었습니다.`);
+    } catch {
+      toast.error('삭제에 실패했습니다.');
+    }
     setDeleteTarget(null);
+  };
+
+  const handleLogout = () => {
+    removeAccessToken();
+    router.push('/login');
   };
 
   return (
@@ -64,13 +105,13 @@ export default function MyPage() {
 
             <div className="flex-1">
               <p className="text-[20px] font-black text-[#475569] dark:text-slate-100">
-                {mockUser.name}
+                {loadingUser ? '...' : (user?.name ?? '사용자')}
               </p>
 
               <p className="mt-2 text-[13px] font-semibold text-[#475569] dark:text-slate-300">
                 전화번호 :{" "}
                 <span className="font-bold text-[#526277] dark:text-slate-200">
-                  {mockUser.phoneNumber}
+                  {loadingUser ? '...' : (user?.phoneNumber ?? '미등록')}
                 </span>
               </p>
             </div>
@@ -137,7 +178,9 @@ export default function MyPage() {
             )}
           </div>
 
-          <button className="mt-4 w-full rounded-2xl bg-[rgba(82,183,136,0.12)] py-4 text-[15px] font-black text-[#52B788] transition-transform active:scale-[0.98] dark:bg-[rgba(82,183,136,0.18)] dark:text-[#6EE7B7]">
+          <button
+            onClick={handleLogout}
+            className="mt-4 w-full rounded-2xl bg-[rgba(82,183,136,0.12)] py-4 text-[15px] font-black text-[#52B788] transition-transform active:scale-[0.98] dark:bg-[rgba(82,183,136,0.18)] dark:text-[#6EE7B7]">
             로그아웃
           </button>
         </section>

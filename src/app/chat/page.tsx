@@ -1,9 +1,9 @@
 'use client'
 // src/app/chat/page.tsx
-import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { useAppStore } from '@/lib/store'
+import { getAccessToken } from '@/lib/api'
 import { ChatHeader } from '@/components/chat/ChatHeader'
 import { MessageList } from '@/components/chat/MessageList'
 import { ChatInput } from '@/components/chat/ChatInput'
@@ -13,7 +13,6 @@ import { BottomNav } from '@/components/layout/BottomNav'
 import toast from 'react-hot-toast'
 
 export default function ChatPage() {
-  const { data: session, status } = useSession()
   const router = useRouter()
   const {
     messages, consultationId,
@@ -22,11 +21,17 @@ export default function ChatPage() {
   } = useAppStore()
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const [uploadedImg, setUploadedImg] = useState<string | null>(null)
+  const [checking, setChecking] = useState(true)
 
-  // Auth guard
+  // Auth guard - JWT 토큰 체크
   useEffect(() => {
-    if (status === 'unauthenticated') router.replace('/login')
-  }, [status, router])
+    const token = getAccessToken()
+    if (!token) {
+      router.replace('/login')
+    } else {
+      setChecking(false)
+    }
+  }, [router])
 
   // Auto-scroll
   useEffect(() => {
@@ -110,7 +115,7 @@ export default function ChatPage() {
     }
   }, [isLoading, messages, consultationId, uploadedImg])
 
-  if (status === 'loading') {
+  if (checking) {
     return (
       <div className="flex h-dvh items-center justify-center bg-[#F4FCFB]">
         <div className="w-10 h-10 rounded-full border-[3px] border-[#52B788] border-t-transparent animate-spin" />

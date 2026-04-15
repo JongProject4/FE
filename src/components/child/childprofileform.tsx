@@ -3,21 +3,17 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAppStore } from '@/lib/store'
 import toast from 'react-hot-toast'
-import { mockChildren } from '@/app/mocks/children'
+import {
+  getChildren as fetchChildrenApi,
+  getChild as fetchChildApi,
+  createChild as createChildApi,
+  patchChild as patchChildApi,
+  type ChildResponse,
+  type CreateChildRequest,
+  type PatchChildRequest,
+} from '@/lib/api'
 
 type Gender = 'MALE' | 'FEMALE'
-
-type ChildLike = {
-  id?: string | number | null
-  name?: string | null
-  birthdate?: string | null
-  gender?: Gender | null
-  height?: number | string | null
-  weight?: number | string | null
-  allergies?: string | string[] | null
-  medical_history?: string | string[] | null
-  medicalHistory?: string | string[] | null
-}
 
 type FormState = {
   name: string
@@ -57,14 +53,21 @@ function normalizeBirthdate(value?: string | null) {
   return value.slice(0, 10)
 }
 
-function normalizeTextField(value?: string | string[] | null) {
-  if (!value) return ''
-  return Array.isArray(value) ? value.join(', ') : value
-}
-
 function normalizeGender(value?: string | null): Gender {
   if (value === 'M' || value === 'MALE') return 'MALE'
   return 'FEMALE'
+}
+
+/** ChildResponse → 스토어 형식으로 변환 */
+function childResponseToStoreChild(res: ChildResponse) {
+  return {
+    id: String(res.id),
+    name: res.name,
+    birthdate: normalizeBirthdate(res.birthdate),
+    gender: res.gender,
+    weight: res.weight,
+    allergies: res.allergies,
+  }
 }
 
 export default function ChildProfileForm({
@@ -90,12 +93,30 @@ export default function ChildProfileForm({
 
   const handleEditLoadError = (message: string) => {
     if (editLoadErrorHandledRef.current) return
-
     editLoadErrorHandledRef.current = true
     toast.error(message)
     router.replace(MY_PAGE_ROUTE)
   }
 
+  // ── 아이 목록 로드 (create 모드일 때) ──
+  useEffect(() => {
+    if (isEditMode) return
+
+    const loadChildren = async () => {
+      try {
+        const data = await fetchChildrenApi()
+        const storeChildren = data.map(childResponseToStoreChild)
+        setChildren(storeChildren)
+      } catch {
+        // 백엔드 연결 실패시 기존 로컬 데이터 유지
+        console.warn('백엔드에서 아이 목록을 불러오지 못했습니다.')
+      }
+    }
+
+    loadChildren()
+  }, [isEditMode, setChildren])
+
+  // ── 수정 모드: 아이 정보 로드 ──
   useEffect(() => {
     if (!isEditMode) {
       setForm(EMPTY_FORM)
@@ -111,72 +132,43 @@ export default function ChildProfileForm({
 
     let mounted = true
 
-    const applyChildToForm = (child: ChildLike) => {
+    const applyChildToForm = (child: ChildResponse) => {
       if (!mounted) return
-
       setForm({
         name: child.name ?? '',
         birthdate: normalizeBirthdate(child.birthdate),
         gender: normalizeGender(child.gender),
-        height:
-          child.height === undefined || child.height === null || child.height === ''
-            ? ''
-            : String(child.height),
-        weight:
-          child.weight === undefined || child.weight === null || child.weight === ''
-            ? ''
-            : String(child.weight),
-        allergies: normalizeTextField(child.allergies),
-        medicalHistory: normalizeTextField(
-          child.medical_history ?? child.medicalHistory
-        ),
+        height: child.height != null ? String(child.height) : '',
+        weight: child.weight != null ? String(child.weight) : '',
+        allergies: child.allergies ?? '',
+        medicalHistory: child.medicalHistory ?? '',
       })
-    }
-
-    const localChild = children.find(
-      (child) => String(child.id) === String(targetChildId)
-    )
-
-    if (localChild) {
-      applyChildToForm(localChild as ChildLike)
-      setLoading(false)
-      return
-    }
-
-    const mockChild = mockChildren.find(
-      (child) => String(child.id) === String(targetChildId)
-    )
-
-    if (mockChild) {
-      applyChildToForm({
-        ...mockChild,
-        gender: normalizeGender(mockChild.gender),
-        medical_history:
-          'medicalHistory' in mockChild ? mockChild.medicalHistory : '',
-      })
-      setLoading(false)
-      return
     }
 
     const fetchChild = async () => {
       try {
-        const res = await fetch(`/api/children/${targetChildId}`, {
-          method: 'GET',
-          cache: 'no-store',
-        })
-
-        if (!res.ok) {
-          throw new Error('failed to fetch child')
-        }
-
-        const fetchedChild = await res.json()
-        applyChildToForm(fetchedChild)
+        const childData = await fetchChildApi(Number(targetChildId))
+        applyChildToForm(childData)
       } catch {
-        handleEditLoadError('아이 정보를 불러오지 못했습니다.')
-      } finally {
-        if (mounted) {
-          setLoading(false)
+        // 백엔드 실패 시 로컬 children에서 찾기
+        const localChild = children.find(
+          (c) => String(c.id) === String(targetChildId)
+        )
+        if (localChild && mounted) {
+          setForm({
+            name: localChild.name ?? '',
+            birthdate: normalizeBirthdate(localChild.birthdate),
+            gender: normalizeGender(localChild.gender),
+            height: '',
+            weight: localChild.weight != null ? String(localChild.weight) : '',
+            allergies: localChild.allergies ?? '',
+            medicalHistory: '',
+          })
+        } else {
+          handleEditLoadError('아이 정보를 불러오지 못했습니다.')
         }
+      } finally {
+        if (mounted) setLoading(false)
       }
     }
 
@@ -185,7 +177,8 @@ export default function ChildProfileForm({
     return () => {
       mounted = false
     }
-  }, [isEditMode, targetChildId, children, router, handleEditLoadError])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEditMode, targetChildId])
 
   const handleSubmit = async () => {
     if (!form.name.trim() || !form.birthdate) {
@@ -211,40 +204,45 @@ export default function ChildProfileForm({
     setSaving(true)
 
     try {
-      const payload = {
-        name: form.name.trim(),
-        birthdate: form.birthdate,
-        gender: form.gender,
-        height: form.height === '' ? null : Number(form.height),
-        weight: form.weight === '' ? null : Number(form.weight),
-        allergies: form.allergies.trim(),
-        medical_history: form.medicalHistory.trim(),
-      }
+      let savedChild: ChildResponse
 
-      const res = await fetch(
-        isEditMode ? `/api/children/${targetChildId}` : '/api/children',
-        {
-          method: isEditMode ? 'PUT' : 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
+      if (isEditMode) {
+        // PATCH /api/children/{childId}
+        const patchPayload: PatchChildRequest = {
+          name: form.name.trim(),
+          birthdate: `${form.birthdate}T00:00:00`,
+          gender: form.gender,
+          height: form.height === '' ? null : Number(form.height),
+          weight: form.weight === '' ? null : Number(form.weight),
+          medicalHistory: form.medicalHistory.trim(),
+          allergies: form.allergies.trim(),
         }
-      )
-
-      if (!res.ok) {
-        throw new Error('save failed')
+        savedChild = await patchChildApi(Number(targetChildId), patchPayload)
+      } else {
+        // POST /api/children
+        const createPayload: CreateChildRequest = {
+          name: form.name.trim(),
+          birthdate: `${form.birthdate}T00:00:00`,
+          gender: form.gender,
+          height: form.height === '' ? null : Number(form.height),
+          weight: form.weight === '' ? null : Number(form.weight),
+          medicalHistory: form.medicalHistory.trim(),
+          allergies: form.allergies.trim(),
+        }
+        savedChild = await createChildApi(createPayload)
       }
 
-      const savedChild = await res.json()
+      const storeChild = childResponseToStoreChild(savedChild)
 
       if (isEditMode) {
         const updatedChildren = children.map((existingChild) =>
           String(existingChild.id) === String(savedChild.id)
-            ? { ...existingChild, ...savedChild }
+            ? storeChild
             : existingChild
         )
         setChildren(updatedChildren)
       } else {
-        setChildren([...children, savedChild])
+        setChildren([...children, storeChild])
       }
 
       setSelectedChild(String(savedChild.id))
@@ -256,7 +254,8 @@ export default function ChildProfileForm({
       )
 
       router.push('/chat')
-    } catch {
+    } catch (error) {
+      console.error('Child save error:', error)
       toast.error(
         isEditMode
           ? '수정에 실패했습니다. 다시 시도해주세요.'
@@ -406,11 +405,10 @@ export default function ChildProfileForm({
                       key={val}
                       type="button"
                       onClick={() => setForm({ ...form, gender: val })}
-                      className={`flex-1 rounded-2xl py-3.5 text-[15px] font-black transition-all ${
-                        form.gender === val
+                      className={`flex-1 rounded-2xl py-3.5 text-[15px] font-black transition-all ${form.gender === val
                           ? 'border border-[#52B788] bg-[rgba(82,183,136,0.12)] text-[#52B788] shadow-sm'
                           : 'border border-[rgba(82,183,136,0.2)] bg-white text-[#475569] dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'
-                      }`}
+                        }`}
                     >
                       {label}
                     </button>

@@ -2,9 +2,8 @@
 // src/components/chat/ChatHeader.tsx
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { signOut } from 'next-auth/react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useSession } from 'next-auth/react'
+import { removeAccessToken } from '@/lib/api'
 
 const MOCK_HISTORY = [
   { id: 1, title: '열이 38도까지 올라가요', date: '오늘' },
@@ -17,11 +16,11 @@ const MOCK_HISTORY = [
 export function ChatHeader() {
   const router = useRouter()
   const [isOpen, setIsOpen] = useState(false)
-  const { data: session } = useSession()
 
-  // get user's first letter
-  const userInitial = session?.user?.name ? session.user.name.charAt(0).toUpperCase() : 'A'
-  const userName = session?.user?.name || 'User'
+  const handleLogout = () => {
+    removeAccessToken()
+    router.push('/login')
+  }
 
   return (
     <>
@@ -116,10 +115,10 @@ export function ChatHeader() {
 
               {/* Profile / Logout Footer */}
               <div className="p-3 bg-white border-t border-[rgba(82,183,136,0.12)]">
-                <div className="flex items-center justify-between p-2 rounded-xl hover:bg-[#FFF0F0] text-[#475569] hover:text-[#FF5A5A] transition-colors cursor-pointer group" onClick={() => signOut()}>
+                <div className="flex items-center justify-between p-2 rounded-xl hover:bg-[#FFF0F0] text-[#475569] hover:text-[#FF5A5A] transition-colors cursor-pointer group" onClick={handleLogout}>
                   <div className="flex items-center gap-3">
                     <div className="w-9 h-9 rounded-full bg-[rgba(82,183,136,0.12)] flex items-center justify-center text-[#52B788] text-[15px] font-bold group-hover:bg-[#FF5A5A] group-hover:text-white transition-colors">
-                      {userInitial}
+                      U
                     </div>
                     <span className="text-[15px] font-bold">로그아웃</span>
                   </div>
