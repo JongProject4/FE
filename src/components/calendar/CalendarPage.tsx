@@ -1,13 +1,13 @@
 'use client'
 // src/components/calendar/CalendarPage.tsx
 // ✅ 메인 캘린더 페이지 - 모든 뷰를 조율합니다
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { CalendarGrid } from './CalendarGrid'
 import { DayPopup } from './DayPopup'
 import { ClinicForm } from './ClinicForm'
 import { MedForm } from './MedForm'
 import { useCalendarStore } from './store'
-import { ClinicRecord, MedRecord, Child } from './types'
+import { ClinicRecord, MedRecord, Child, DayEvents, CalendarEvent } from './types'
 import { dateKey, calcAge } from './utils'
 import { BottomNav } from '@/components/layout/BottomNav'
 
@@ -99,6 +99,16 @@ export function CalendarPage({ initialChildren }: Props) {
   const handleDayClick = (date: Date) => {
     setSelectedDate(date)
     setView('day')
+  }
+
+  const handlePrevMonth = () => {
+    if (month === 0) { setYear(y => y - 1); setMonth(11) }
+    else setMonth(m => m - 1)
+  }
+
+  const handleNextMonth = () => {
+    if (month === 11) { setYear(y => y + 1); setMonth(0) }
+    else setMonth(m => m + 1)
   }
 
   const handleSaveClinic = (record: ClinicRecord) => {
