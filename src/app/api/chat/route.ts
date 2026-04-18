@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 
+export const dynamic = 'force-dynamic' // Force Vercel to treat this as an API endpoint, not static HTML
+
+
 // Spring Boot backend URL
 const BACKEND_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://aikids.duckdns.org'
 
