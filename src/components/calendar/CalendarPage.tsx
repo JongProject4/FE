@@ -8,7 +8,7 @@ import { ClinicForm } from './ClinicForm'
 import { MedForm } from './MedForm'
 import { useCalendarStore } from './store'
 import { ClinicRecord, MedRecord, Child } from './types'
-import { dateKey } from './utils'
+import { dateKey, calcAge } from './utils'
 import { BottomNav } from '@/components/layout/BottomNav'
 
 type View = 'calendar' | 'day' | 'clinic-form' | 'med-form' | 'success'
@@ -42,7 +42,7 @@ export function CalendarPage({ initialChildren }: Props) {
         const mappedChildren: Child[] = childrenData.map(c => ({
           id: String(c.id),
           name: c.name,
-          age: '4세', // 생년월일 계산 로직 필요하나 일단 하드코딩 또는 간단 계산
+          age: c.birthdate ? calcAge(c.birthdate) : 'N/A',
           gender: c.gender
         }))
         setChildren(mappedChildren)
