@@ -287,7 +287,7 @@ export async function sendChatMessage(chatId: number, message: string): Promise<
             'Content-Type': 'application/json',
             'Authorization': token ? `Bearer ${token}` : '',
         },
-        body: JSON.stringify({ message }),
+        body: JSON.stringify({ content: message }),
     })
 
     if (!res.ok) throw new Error('Chat message failed')
