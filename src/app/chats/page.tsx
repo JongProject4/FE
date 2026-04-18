@@ -1,27 +1,41 @@
 'use client'
 // src/app/chats/page.tsx
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { BottomNav } from '@/components/layout/BottomNav'
 import { ChatHeader } from '@/components/chat/ChatHeader' // reuse or create a custom header
 
-const MOCK_CHATS = [
-    { id: 1, title: '열이 38도까지 올라가요', date: '2026년 4월 8일' },
-    { id: 2, title: '계속 기침을 하고 밤에 잠을 못자요', date: '2026년 4월 7일' },
-    { id: 3, title: '예방접종 후 미열 상담', date: '2026년 4월 5일' },
-    { id: 4, title: '우유 알레르기 증상 문의', date: '2026년 4월 3일' },
-    { id: 5, title: '아이 두통 상담', date: '2026년 3월 30일' },
-    { id: 6, title: '배탈 후 영양제 문의', date: '2026년 3월 25일' },
-    { id: 7, title: '영유아 수면 패턴 상담', date: '2026년 3월 20일' },
-    { id: 8, title: '아토피 피부염 치료법', date: '2026년 3월 18일' },
-    { id: 9, title: '신생아 황달 상담', date: '2026년 3월 12일' },
-]
-
 export default function ChatsPage() {
     const router = useRouter()
     const [search, setSearch] = useState('')
+    const [chats, setChats] = useState<{ id: number, title: string, date: string }[]>([])
+    const [loading, setLoading] = useState(true)
 
-    const filteredChats = MOCK_CHATS.filter(chat =>
+    // 백엔드에서 실시간 상담 목록 로드
+    useEffect(() => {
+        const loadHistory = async () => {
+            try {
+                const { getChildren, getChatRooms } = await import('@/lib/api')
+                const children = await getChildren()
+                if (children.length > 0) {
+                    const roomIds = await getChatRooms(children[0].id)
+                    const mapped = roomIds.map(id => ({
+                        id,
+                        title: `상담 #${id}`,
+                        date: '최근 상담' // 백엔드에서 날짜 정보를 안주므로 일단 고정
+                    }))
+                    setChats(mapped)
+                }
+            } catch (err) {
+                console.error('History load failed', err)
+            } finally {
+                setLoading(false)
+            }
+        }
+        loadHistory()
+    }, [])
+
+    const filteredChats = chats.filter(chat =>
         chat.title.toLowerCase().includes(search.toLowerCase())
     )
 

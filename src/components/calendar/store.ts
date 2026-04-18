@@ -9,6 +9,7 @@ interface CalendarStore {
   addEvent: (event: CalendarEvent) => void
   removeEvent: (date: Date, eventId: string) => void
   getEventsForDate: (date: Date) => CalendarEvent[]
+  setEvents: (events: DayEvents) => void
 }
 
 export const useCalendarStore = create<CalendarStore>()(
@@ -42,6 +43,7 @@ export const useCalendarStore = create<CalendarStore>()(
         const key = dateKey(date)
         return get().events[key] || []
       },
+      setEvents: (events) => set({ events }),
     }),
     { name: 'pediatric-calendar-events' }
   )

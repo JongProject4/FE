@@ -42,6 +42,29 @@ export default function ChatPage() {
     if (isLoading) return
     if (!text.trim() && !uploadedImg) return
 
+    // 1. Get or create consultationId (Room)
+    let currentRoomId = consultationId
+    if (!currentRoomId) {
+      try {
+        const { getChildren, createChat } = await import('@/lib/api')
+        const children = await getChildren()
+        if (children.length === 0) {
+          toast.error('먼저 아이를 등록해주세요.')
+          router.push('/child-setup')
+          return
+        }
+        const newRoom = await createChat({
+          childId: children[0].id,
+          title: text.slice(0, 20) || '새 상담'
+        })
+        currentRoomId = String(newRoom.chatId)
+        setConsultationId(currentRoomId)
+      } catch (err) {
+        toast.error('상담방 생성에 실패했습니다.')
+        return
+      }
+    }
+
     const userMsg = {
       id: Date.now().toString(),
       role: 'user' as const,
@@ -57,63 +80,23 @@ export default function ChatPage() {
     addMessage({
       id: aiMsgId,
       role: 'assistant',
-      content: '',
+      content: '생각 중...',
       timestamp: new Date().toISOString(),
       isStreaming: true,
     })
 
     try {
-      const history = messages
-        .filter((m) => !m.isStreaming)
-        .slice(-10)
-        .map((m) => ({ role: m.role, content: m.content }))
+      const { sendChatMessage } = await import('@/lib/api')
+      const responseText = await sendChatMessage(Number(currentRoomId), text)
 
-      history.push({ role: 'user', content: text })
-
-      const res = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          consultationId,
-          messages: history,
-          imageUrl: uploadedImg,
-        }),
-      })
-
-      const reader = res.body!.getReader()
-      const decoder = new TextDecoder()
-      let accumulated = ''
-
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-
-        const chunk = decoder.decode(value)
-        const lines = chunk.split('\n')
-
-        for (const line of lines) {
-          if (!line.startsWith('data: ')) continue
-          try {
-            const data = JSON.parse(line.slice(6))
-            if (data.text) {
-              accumulated += data.text
-              updateLastMessage(accumulated, false)
-            }
-            if (data.done) {
-              updateLastMessage(accumulated, true, data.riskLevel)
-              setConsultationId(data.consultationId)
-            }
-            if (data.error) toast.error(data.error)
-          } catch { }
-        }
-      }
+      updateLastMessage(responseText, true)
     } catch (err) {
       updateLastMessage('죄송합니다. 오류가 발생했습니다. 다시 시도해주세요.', true)
       toast.error('연결 오류가 발생했습니다.')
     } finally {
       setLoading(false)
     }
-  }, [isLoading, messages, consultationId, uploadedImg])
+  }, [isLoading, messages, consultationId, uploadedImg, router, addMessage, setConsultationId, setLoading, updateLastMessage])
 
   if (checking) {
     return (

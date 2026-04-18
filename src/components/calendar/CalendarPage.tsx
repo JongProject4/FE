@@ -13,35 +13,88 @@ import { BottomNav } from '@/components/layout/BottomNav'
 
 type View = 'calendar' | 'day' | 'clinic-form' | 'med-form' | 'success'
 
-// 샘플 아이들 (실제로는 부모 컴포넌트에서 props로 받아야 함)
-const SAMPLE_CHILDREN: Child[] = [
-  { id: 'child-1', name: '지아', age: '4세', gender: 'FEMALE' },
-  { id: 'child-2', name: '민준', age: '7세', gender: 'MALE' },
-]
+// 샘플 아이들 주석 처리 또는 제거
+// const SAMPLE_CHILDREN: Child[] = ...
 
 interface Props {
-  children?: Child[]  // 실제 아이 목록을 부모에서 전달
+  initialChildren?: Child[]
 }
 
-export function CalendarPage({ children = SAMPLE_CHILDREN }: Props) {
+export function CalendarPage({ initialChildren }: Props) {
   const today = new Date()
   const [year, setYear] = useState(today.getFullYear())
   const [month, setMonth] = useState(today.getMonth())
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
   const [view, setView] = useState<View>('calendar')
   const [successMsg, setSuccessMsg] = useState({ title: '', sub: '' })
+  const [children, setChildren] = useState<Child[]>(initialChildren || [])
+  const [loading, setLoading] = useState(!initialChildren)
 
-  const { events, addEvent, removeEvent, getEventsForDate } = useCalendarStore()
+  const { events, addEvent, removeEvent, getEventsForDate, setEvents } = useCalendarStore()
 
-  const handlePrevMonth = () => {
-    if (month === 0) { setYear(y => y - 1); setMonth(11) }
-    else setMonth(m => m - 1)
-  }
+  // 1. 아이 목록 및 건강 기록 로드
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const { getChildren, getHealthLogs } = await import('@/lib/api')
+        const childrenData = await getChildren()
 
-  const handleNextMonth = () => {
-    if (month === 11) { setYear(y => y + 1); setMonth(0) }
-    else setMonth(m => m + 1)
-  }
+        const mappedChildren: Child[] = childrenData.map(c => ({
+          id: String(c.id),
+          name: c.name,
+          age: '4세', // 생년월일 계산 로직 필요하나 일단 하드코딩 또는 간단 계산
+          gender: c.gender
+        }))
+        setChildren(mappedChildren)
+
+        // 아이가 있으면 첫 번째 아이의 기록 로드 (또는 전체)
+        if (mappedChildren.length > 0) {
+          const logs = await getHealthLogs(Number(mappedChildren[0].id))
+
+          const newEvents: DayEvents = {}
+          logs.forEach(log => {
+            const dateObj = new Date(log.eventDate)
+            const key = dateKey(dateObj)
+
+            const event: CalendarEvent = log.logType === 'MEDICATION' ? {
+              id: String(log.id),
+              type: 'med',
+              childId: String(log.childId),
+              childName: mappedChildren.find(c => c.id === String(log.childId))?.name || '',
+              medName: log.content,
+              startDate: log.eventDate,
+              endDate: log.eventDate,
+              times: [],
+              dosage: '',
+              alarmEnabled: false,
+              date: key,
+              createdAt: log.eventDate
+            } : {
+              id: String(log.id),
+              type: 'clinic',
+              childId: String(log.childId),
+              childName: mappedChildren.find(c => c.id === String(log.childId))?.name || '',
+              hospital: log.logType === 'HOSPITAL' ? log.content : '상담 기록',
+              diagnosis: log.logType === 'CONSULTATION' ? log.content : '',
+              hasNextVisit: false,
+              medications: [],
+              date: key,
+              createdAt: log.eventDate
+            }
+
+            if (!newEvents[key]) newEvents[key] = []
+            newEvents[key].push(event)
+          })
+          setEvents(newEvents)
+        }
+      } catch (err) {
+        console.error('Failed to load calendar data', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadData()
+  }, [setEvents])
 
   const handleDayClick = (date: Date) => {
     setSelectedDate(date)
