@@ -1,3 +1,4 @@
+// Updated: 2026-04-19 00:00
 // src/lib/api.ts
 // 백엔드 API 클라이언트 - Spring Boot 서버와 통신
 
