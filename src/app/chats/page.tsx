@@ -2,6 +2,8 @@
 // src/app/chats/page.tsx
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { useAppStore } from '@/lib/store'
+import { getChildren, getChatRooms } from '@/lib/api'
 import { BottomNav } from '@/components/layout/BottomNav'
 import { ChatHeader } from '@/components/chat/ChatHeader' // reuse or create a custom header
 
@@ -16,7 +18,6 @@ export default function ChatsPage() {
     useEffect(() => {
         const loadHistory = async () => {
             try {
-                const { getChildren, getChatRooms } = await import('@/lib/api')
                 const children = await getChildren()
                 if (children.length > 0) {
                     const roomIds = await getChatRooms(children[0].id)
