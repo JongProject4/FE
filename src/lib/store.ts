@@ -34,6 +34,7 @@ interface AppStore {
   updateLastMessage: (content: string, done?: boolean, riskLevel?: string) => void
   clearMessages: () => void
   setConsultationId: (id: string | null) => void
+  setMessages: (messages: Message[]) => void
   setLoading: (v: boolean) => void
 }
 
@@ -65,6 +66,7 @@ export const useAppStore = create<AppStore>()(
         }),
       clearMessages: () => set({ messages: [], consultationId: null }),
       setConsultationId: (id) => set({ consultationId: id }),
+      setMessages: (messages) => set({ messages }),
       setLoading: (v) => set({ isLoading: v }),
     }),
     {

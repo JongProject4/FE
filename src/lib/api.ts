@@ -1,7 +1,9 @@
 // src/lib/api.ts
 // 백엔드 API 클라이언트 - Spring Boot 서버와 통신
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080'
+// Backend API URL configuration
+const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL || 'https://aikids.duckdns.org').replace(/\/$/, '')
+if (typeof window !== 'undefined') (window as any).API_BASE_URL = API_BASE_URL
 
 // ── JWT 토큰 관리 ──
 export function getAccessToken(): string | null {
@@ -33,6 +35,7 @@ async function apiFetch<T>(
         headers['Authorization'] = `Bearer ${token}`
     }
 
+    console.log(`[API Request] ${options.method || 'GET'} ${API_BASE_URL}${endpoint}`)
     const res = await fetch(`${API_BASE_URL}${endpoint}`, {
         ...options,
         headers,
@@ -258,10 +261,9 @@ export interface ChatMessageRequest {
 }
 
 export interface ChatDetailResponse {
-    id: number;
     role: 'USER' | 'AI';
-    message: string;
-    createdAt: string;
+    content: string;
+    time: string;
 }
 
 /** 새로운 상담 방 만들기 */

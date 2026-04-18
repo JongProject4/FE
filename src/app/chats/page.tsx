@@ -7,6 +7,7 @@ import { ChatHeader } from '@/components/chat/ChatHeader' // reuse or create a c
 
 export default function ChatsPage() {
     const router = useRouter()
+    const { setConsultationId, setMessages } = useAppStore()
     const [search, setSearch] = useState('')
     const [chats, setChats] = useState<{ id: number, title: string, date: string }[]>([])
     const [loading, setLoading] = useState(true)
@@ -19,12 +20,14 @@ export default function ChatsPage() {
                 const children = await getChildren()
                 if (children.length > 0) {
                     const roomIds = await getChatRooms(children[0].id)
-                    const mapped = roomIds.map(id => ({
-                        id,
-                        title: `상담 #${id}`,
-                        date: '최근 상담' // 백엔드에서 날짜 정보를 안주므로 일단 고정
-                    }))
-                    setChats(mapped)
+                    if (Array.isArray(roomIds)) {
+                        const mapped = roomIds.map(id => ({
+                            id,
+                            title: `상담 #${id}`,
+                            date: '최근 상담'
+                        }))
+                        setChats(mapped)
+                    }
                 }
             } catch (err) {
                 console.error('History load failed', err)
@@ -91,11 +94,16 @@ export default function ChatsPage() {
             </div>
 
             {/* Chat List */}
+            {/* Chat List */}
             <div className="flex-1 overflow-y-auto px-2 pb-[100px]">
                 {filteredChats.map((chat) => (
                     <button
                         key={chat.id}
-                        onClick={() => router.push('/chat')}
+                        onClick={() => {
+                            setConsultationId(String(chat.id))
+                            setMessages([]) // Clear local messages, ChatPage will load them
+                            router.push('/chat')
+                        }}
                         className="w-full text-left px-4 py-3.5 mb-1 rounded-2xl hover:bg-[rgba(82,183,136,0.06)] active:scale-[0.98] transition-all group"
                     >
                         <div className="text-[16px] font-bold text-[#334155] group-hover:text-[#52B788] truncate mb-1 transition-colors">{chat.title}</div>

@@ -38,6 +38,30 @@ export default function ChatPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
+  // Load history if consultationId exists
+  useEffect(() => {
+    if (consultationId && messages.length === 0) {
+      const loadHistory = async () => {
+        try {
+          const { getChatHistory } = await import('@/lib/api')
+          const history = await getChatHistory(Number(consultationId))
+          const { setMessages } = useAppStore.getState()
+
+          const formatted = history.map((h, idx) => ({
+            id: `hist-${idx}`,
+            role: (h.role.toLowerCase() === 'user' ? 'user' : 'assistant') as 'user' | 'assistant',
+            content: h.content,
+            timestamp: h.time
+          }))
+          setMessages(formatted)
+        } catch (err) {
+          console.error('Failed to load history', err)
+        }
+      }
+      loadHistory()
+    }
+  }, [consultationId])
+
   const sendMessage = useCallback(async (text: string) => {
     if (isLoading) return
     if (!text.trim() && !uploadedImg) return
