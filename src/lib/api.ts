@@ -274,24 +274,11 @@ export async function createChat(data: ChatCreateRequest): Promise<ChatCreateRes
 
 /** 특정 방에 메시지 보내고 AI 답변 받기 */
 export async function sendChatMessage(chatId: number, message: string): Promise<string> {
-    // 백엔드가 단순 String을 반환하므로 apiFetch대신 fetch 직접 사용하거나 apiFetch 수정 필요
-    // 여기서는 apiFetch가 .json()을 호출하므로, 백엔드 응답이 JSON이 아닐 경우 에러날 수 있음
-    // ChatController.java의 sendMessage가 ResponseEntity.ok(aiAnswer) (String)를 반환함.
-    // fetch wrapper를 일반화해서 텍스트로도 받아올 수 있게 하거나, 
-    // 백엔드에서 JSON으로 응답하게 하거나, wrapper를 우회해야함.
-
-    const token = getAccessToken()
-    const res = await fetch(`${API_BASE_URL}/api/chat/rooms/${chatId}/messages`, {
+    const res = await apiFetch<{ answer: string }>(`/api/chat/rooms/${chatId}/messages`, {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': token ? `Bearer ${token}` : '',
-        },
         body: JSON.stringify({ content: message }),
     })
-
-    if (!res.ok) throw new Error('Chat message failed')
-    return res.text()
+    return res.answer
 }
 
 /** 특정 아이의 상담 방 목록 가져오기 */
