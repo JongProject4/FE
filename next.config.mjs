@@ -22,6 +22,19 @@ const nextConfig = {
             },
         ]
     },
+    // Proxy /api/chat to Spring Boot backend
+    async rewrites() {
+        return [
+            {
+                source: '/api/chat',
+                destination: 'https://aikids.duckdns.org/api/chat',
+            },
+            {
+                source: '/api/chat/:path*',
+                destination: 'https://aikids.duckdns.org/api/chat/:path*',
+            },
+        ]
+    },
 };
 
 export default nextConfig;
