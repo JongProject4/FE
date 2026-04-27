@@ -1,19 +1,20 @@
 'use client'
-import { useState, useEffect } from "react";
-import styles from "./page.module.css";
-import Image from "next/image";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { BottomNav } from "@/components/layout/BottomNav";
-import {
-  getMe,
-  getChildren as fetchChildrenApi,
-  deleteChild as deleteChildApi,
-  removeAccessToken,
-  type CurrentUser,
-  type ChildResponse,
-} from '@/lib/api';
+
+import { useEffect, useState } from 'react';
+import Image from 'next/image';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
+import { BottomNav } from '@/components/layout/BottomNav';
+import {
+  deleteChild as deleteChildApi,
+  getChildren as fetchChildrenApi,
+  getMe,
+  removeAccessToken,
+  type ChildResponse,
+  type CurrentUser,
+} from '@/lib/api';
+import styles from './page.module.css';
 
 type Child = {
   id: number;
@@ -27,7 +28,6 @@ export default function MyPage() {
   const [deleteTarget, setDeleteTarget] = useState<Child | null>(null);
   const [loadingUser, setLoadingUser] = useState(true);
 
-  // 백엔드에서 사용자 정보 및 아이 목록 로드
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -36,13 +36,19 @@ export default function MyPage() {
           fetchChildrenApi(),
         ]);
         setUser(userData);
-        setChildren(childrenData.map((c: ChildResponse) => ({ id: c.id, name: c.name })));
+        setChildren(
+          childrenData.map((child: ChildResponse) => ({
+            id: child.id,
+            name: child.name,
+          })),
+        );
       } catch {
         console.warn('백엔드 데이터 로드 실패');
       } finally {
         setLoadingUser(false);
       }
     };
+
     loadData();
   }, []);
 
@@ -59,13 +65,12 @@ export default function MyPage() {
 
     try {
       await deleteChildApi(deleteTarget.id);
-      setChildren((prev) =>
-        prev.filter((child) => child.id !== deleteTarget.id)
-      );
+      setChildren((prev) => prev.filter((child) => child.id !== deleteTarget.id));
       toast.success(`${deleteTarget.name} 정보가 삭제되었습니다.`);
     } catch {
       toast.error('삭제에 실패했습니다.');
     }
+
     setDeleteTarget(null);
   };
 
@@ -75,17 +80,9 @@ export default function MyPage() {
   };
 
   return (
-    <>
-      <main className="mx-auto flex h-dvh max-w-[430px] flex-col overflow-hidden bg-[#F4FCFB] px-5 pt-6 pb-6 dark:bg-slate-950">
-        <header className="mb-6 flex items-center gap-3">
-          <Link
-            href="/chat"
-            aria-label="메인페이지로 이동"
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-[#52B788] shadow-md transition-transform active:scale-95 dark:bg-slate-800 dark:text-[#52B788] dark:shadow-[0_4px_20px_rgba(0,0,0,0.35)]"
-          >
-            <HomeIcon />
-          </Link>
-
+    <div className="relative mx-auto h-dvh max-w-[430px] overflow-hidden bg-[#F4FCFB] dark:bg-slate-950">
+      <main className="h-full overflow-y-auto px-5 pt-6 pb-24">
+        <header className="mb-6 flex items-center">
           <h1 className="text-[24px] font-black tracking-tight text-[#334155] dark:text-slate-100">
             마이페이지
           </h1>
@@ -109,7 +106,7 @@ export default function MyPage() {
               </p>
 
               <p className="mt-2 text-[13px] font-semibold text-[#475569] dark:text-slate-300">
-                전화번호 :{" "}
+                전화번호 :{' '}
                 <span className="font-bold text-[#526277] dark:text-slate-200">
                   {loadingUser ? '...' : (user?.phoneNumber ?? '미등록')}
                 </span>
@@ -118,7 +115,7 @@ export default function MyPage() {
           </div>
         </section>
 
-        <section className="flex min-h-0 flex-1 flex-col rounded-3xl bg-white p-5 shadow-xl dark:bg-slate-900 dark:shadow-[0_8px_30px_rgba(0,0,0,0.35)]">
+        <section className="rounded-3xl bg-white p-5 shadow-xl dark:bg-slate-900 dark:shadow-[0_8px_30px_rgba(0,0,0,0.35)]">
           <div className="mb-4">
             <h2 className="text-[18px] font-black text-[#475569] dark:text-slate-100">
               내 아이
@@ -132,7 +129,7 @@ export default function MyPage() {
             </Link>
           </div>
 
-          <div className={`${styles.childListScroll} min-h-0 flex-1 space-y-3 overflow-y-auto pr-1`}>
+          <div className={`${styles.childListScroll} space-y-3 pr-1`}>
             {children.map((child) => (
               <div
                 key={child.id}
@@ -180,12 +177,16 @@ export default function MyPage() {
 
           <button
             onClick={handleLogout}
-            className="mt-4 w-full rounded-2xl bg-[rgba(82,183,136,0.12)] py-4 text-[15px] font-black text-[#52B788] transition-transform active:scale-[0.98] dark:bg-[rgba(82,183,136,0.18)] dark:text-[#6EE7B7]">
+            className="mt-4 w-full rounded-2xl bg-[rgba(82,183,136,0.12)] py-4 text-[15px] font-black text-[#52B788] transition-transform active:scale-[0.98] dark:bg-[rgba(82,183,136,0.18)] dark:text-[#6EE7B7]"
+          >
             로그아웃
           </button>
         </section>
       </main>
-      <BottomNav />
+
+      <div className="absolute inset-x-0 bottom-0 z-40">
+        <BottomNav />
+      </div>
 
       {deleteTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(51,65,85,0.35)] px-5 dark:bg-black/60">
@@ -207,7 +208,7 @@ export default function MyPage() {
             <p className="mt-3 text-center text-[14px] leading-6 text-[#475569] dark:text-slate-300">
               <span className="font-black text-[#334155] dark:text-slate-100">
                 {deleteTarget.name}
-              </span>{" "}
+              </span>{' '}
               정보를 삭제하면 목록에서 사라집니다.
             </p>
 
@@ -229,26 +230,7 @@ export default function MyPage() {
           </div>
         </div>
       )}
-    </>
-  );
-}
-
-function HomeIcon() {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      className="h-5 w-5"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M3 10.5 12 3l9 7.5" />
-      <path d="M5 9.5V20h14V9.5" />
-      <path d="M9 20v-6h6v6" />
-    </svg>
+    </div>
   );
 }
 

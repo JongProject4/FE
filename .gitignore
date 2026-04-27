@@ -7,6 +7,7 @@ out/
 dist/
 .vercel/
 *.log
+tsconfig.tsbuildinfo
 .DS_Store
 Thumbs.db
 prisma/migrations/
