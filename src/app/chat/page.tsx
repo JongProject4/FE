@@ -110,10 +110,58 @@ export default function ChatPage() {
     })
 
     try {
-      const { sendChatMessage } = await import('@/lib/api')
-      const responseText = await sendChatMessage(Number(currentRoomId), text)
+      const { getAccessToken } = await import('@/lib/api')
+      const token = getAccessToken()
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({
+          consultationId: currentRoomId,
+          messages: [...messages, userMsg],
+          imageUrl: uploadedImg || undefined
+        })
+      })
 
-      updateLastMessage(responseText, true)
+      if (!res.ok) {
+        throw new Error('API Request Failed')
+      }
+
+      const reader = res.body?.getReader()
+      if (!reader) throw new Error('No readable stream')
+
+      const decoder = new TextDecoder('utf-8')
+      let fullText = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        const chunk = decoder.decode(value, { stream: true })
+        const lines = chunk.split('\n')
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const dataStr = line.replace('data: ', '').trim()
+            if (dataStr === '[DONE]') {
+              break
+            }
+            try {
+              const parsed = JSON.parse(dataStr)
+              if (parsed.delta) {
+                fullText += parsed.delta
+                updateLastMessage(fullText, false)
+              }
+            } catch (e) {
+              // Parse error on partial chunk, safe to ignore
+            }
+          }
+        }
+      }
+
+      updateLastMessage(fullText, true)
     } catch (err) {
       updateLastMessage('죄송합니다. 오류가 발생했습니다. 다시 시도해주세요.', true)
       toast.error('연결 오류가 발생했습니다.')

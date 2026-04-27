@@ -19,6 +19,17 @@ function formatTime(iso: string) {
 function AIBubble({ msg }: { msg: Message }) {
   const risk = msg.riskLevel ? RISK_CONFIG[msg.riskLevel] : null
 
+  const handleTTS = () => {
+    if (!('speechSynthesis' in window)) {
+      alert('음성 출력을 지원하지 않는 브라우저입니다.');
+      return;
+    }
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(msg.content);
+    utterance.lang = 'ko-KR';
+    window.speechSynthesis.speak(utterance);
+  }
+
   return (
     <div className="flex items-end gap-2 animate-fade-up">
       {/* Avatar */}
@@ -42,11 +53,22 @@ function AIBubble({ msg }: { msg: Message }) {
                   <span className="inline-block w-0.5 h-4 bg-[#52B788] ml-0.5 animate-pulse" />
                 )}
               </p>
-              {risk && !msg.isStreaming && (
-                <span className={`inline-block mt-2 px-2.5 py-1 rounded-full text-[11px] font-bold ${risk.cls}`}>
-                  {risk.label}
-                </span>
-              )}
+
+              <div className="flex items-center gap-2 mt-2">
+                {!msg.isStreaming && (
+                  <button onClick={handleTTS} className="text-[#94A3B8] hover:text-[#52B788] transition-colors" title="듣기 (TTS)">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                      <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                    </svg>
+                  </button>
+                )}
+                {risk && !msg.isStreaming && (
+                  <span className={`inline-block px-2.5 py-1 rounded-full text-[11px] font-bold ${risk.cls}`}>
+                    {risk.label}
+                  </span>
+                )}
+              </div>
             </>
           )}
         </div>

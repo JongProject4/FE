@@ -53,13 +53,43 @@ export async function POST(req: NextRequest) {
             )
         }
 
-        const data = await backendRes.json()
+        if (backendRes.headers.get('content-type')?.includes('event-stream')) {
+            // 1. Backend already supports SSE (Stream)
+            return new Response(backendRes.body, {
+                headers: {
+                    'Content-Type': 'text/event-stream; charset=utf-8',
+                    'Cache-Control': 'no-cache',
+                    'Connection': 'keep-alive',
+                }
+            })
+        } else {
+            // 2. Fallback: Backend currently returns JSON, so we emulate SSE for Frontend
+            const data = await backendRes.json()
+            const fullAnswer = data.answer || data.message || 'No response...'
 
-        // Backend returns { answer: "..." }
-        // Return as streaming-compatible response
-        return NextResponse.json({
-            answer: data.answer || data.message || 'No response',
-        })
+            const encoder = new TextEncoder()
+            const stream = new ReadableStream({
+                async start(controller) {
+                    // Simulate streaming chunk by chunk for the UI effects
+                    const chunks = fullAnswer.match(/.{1,3}/g) || [fullAnswer]
+                    for (const chunk of chunks) {
+                        const payload = JSON.stringify({ delta: chunk })
+                        controller.enqueue(encoder.encode(`data: ${payload}\n\n`))
+                        await new Promise(r => setTimeout(r, 50)) // simulate delay
+                    }
+                    controller.enqueue(encoder.encode(`data: [DONE]\n\n`))
+                    controller.close()
+                }
+            })
+
+            return new Response(stream, {
+                headers: {
+                    'Content-Type': 'text/event-stream; charset=utf-8',
+                    'Cache-Control': 'no-cache',
+                    'Connection': 'keep-alive',
+                }
+            })
+        }
     } catch (error: any) {
         console.error('Chat API proxy error:', error)
         return NextResponse.json(
