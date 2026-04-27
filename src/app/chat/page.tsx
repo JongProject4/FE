@@ -110,61 +110,23 @@ export default function ChatPage() {
     })
 
     try {
-      const { getAccessToken } = await import('@/lib/api')
-      const token = getAccessToken()
-      const res = await fetch('/api/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {})
-        },
-        body: JSON.stringify({
-          consultationId: currentRoomId,
-          messages: [...messages, userMsg],
-          imageUrl: uploadedImg || undefined
-        })
-      })
+      // ✅ api.ts의 sendChatMessage를 직접 사용 (API_BASE_URL로 백엔드 직접 호출)
+      const { sendChatMessage } = await import('@/lib/api')
+      const responseText = await sendChatMessage(Number(currentRoomId), text)
 
-      if (!res.ok) {
-        throw new Error('API Request Failed')
+      // 타이핑 애니메이션 (프론트엔드에서 처리)
+      const chars = responseText.split('')
+      let displayed = ''
+      for (let i = 0; i < chars.length; i++) {
+        displayed += chars[i]
+        updateLastMessage(displayed, false)
+        if (i % 3 === 0) await new Promise(r => setTimeout(r, 30))
       }
-
-      const reader = res.body?.getReader()
-      if (!reader) throw new Error('No readable stream')
-
-      const decoder = new TextDecoder('utf-8')
-      let fullText = ''
-
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-
-        const chunk = decoder.decode(value, { stream: true })
-        const lines = chunk.split('\n')
-
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const dataStr = line.replace('data: ', '').trim()
-            if (dataStr === '[DONE]') {
-              break
-            }
-            try {
-              const parsed = JSON.parse(dataStr)
-              if (parsed.delta) {
-                fullText += parsed.delta
-                updateLastMessage(fullText, false)
-              }
-            } catch (e) {
-              // Parse error on partial chunk, safe to ignore
-            }
-          }
-        }
-      }
-
-      updateLastMessage(fullText, true)
-    } catch (err) {
+      updateLastMessage(responseText, true)
+    } catch (err: any) {
+      console.error('[Chat Error]', err)
       updateLastMessage('죄송합니다. 오류가 발생했습니다. 다시 시도해주세요.', true)
-      toast.error('연결 오류가 발생했습니다.')
+      toast.error(`연결 오류: ${err.message || '알 수 없는 오류'}`)
     } finally {
       setLoading(false)
     }

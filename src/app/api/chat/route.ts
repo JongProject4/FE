@@ -31,6 +31,10 @@ export async function POST(req: NextRequest) {
         // Forward Authorization header
         const authHeader = req.headers.get('Authorization') || ''
 
+        // Add timeout to backend fetch to prevent hanging forever
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 12000)
+
         // Call Spring Boot backend: POST /api/chat/rooms/{chatId}/messages
         const backendRes = await fetch(
             `${BACKEND_URL}/api/chat/rooms/${consultationId}/messages`,
@@ -41,12 +45,14 @@ export async function POST(req: NextRequest) {
                     ...(authHeader ? { Authorization: authHeader } : {}),
                 },
                 body: JSON.stringify({ content: messageContent }),
+                signal: controller.signal,
             }
         )
+        clearTimeout(timeoutId)
 
         if (!backendRes.ok) {
             const errorText = await backendRes.text().catch(() => '')
-            console.error(`Backend error ${backendRes.status}: ${errorText}`)
+            console.error(`[API Proxy] Backend error ${backendRes.status}: ${errorText}`)
             return NextResponse.json(
                 { error: `Backend error: ${backendRes.status}` },
                 { status: backendRes.status }
