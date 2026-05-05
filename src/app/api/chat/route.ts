@@ -35,16 +35,16 @@ export async function POST(req: NextRequest) {
         const controller = new AbortController()
         const timeoutId = setTimeout(() => controller.abort(), 12000)
 
-        // Call Spring Boot backend: POST /api/chat/rooms/{chatId}/messages
+        // Call Spring Boot backend: POST /api/chats/${chatId}/messages
         const backendRes = await fetch(
-            `${BACKEND_URL}/api/chat/rooms/${consultationId}/messages`,
+            `${BACKEND_URL}/api/chats/${consultationId}/messages`,
             {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     ...(authHeader ? { Authorization: authHeader } : {}),
                 },
-                body: JSON.stringify({ content: messageContent }),
+                body: JSON.stringify({ content: messageContent, imageUrl }),
                 signal: controller.signal,
             }
         )

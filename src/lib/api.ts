@@ -245,12 +245,11 @@ export async function createHealthLog(
 }
 
 // ============================================================
-// Chat API  (/api/chat)
+// Chat API  (/api/chats)
 // ============================================================
 
 export interface ChatCreateRequest {
     childId: number;
-    title: string;
 }
 
 export interface ChatCreateResponse {
@@ -258,38 +257,51 @@ export interface ChatCreateResponse {
 }
 
 export interface ChatMessageRequest {
-    message: string;
+    content: string;
+    imageUrl?: string;
 }
 
 export interface ChatDetailResponse {
     role: 'USER' | 'AI';
     content: string;
+    imageUrl?: string;
     time: string;
 }
 
 /** 새로운 상담 방 만들기 */
 export async function createChat(data: ChatCreateRequest): Promise<ChatCreateResponse> {
-    return apiFetch<ChatCreateResponse>('/api/chat/rooms', {
+    return apiFetch<ChatCreateResponse>('/api/chats', {
         method: 'POST',
         body: JSON.stringify(data),
     })
 }
 
-/** 특정 방에 메시지 보내고 AI 답변 받기 */
-export async function sendChatMessage(chatId: number, message: string): Promise<string> {
-    const res = await apiFetch<{ answer: string }>(`/api/chat/rooms/${chatId}/messages`, {
+/** 메시지 전송 및 AI 답변 받기 */
+export async function sendChatMessage(chatId: number, content: string, imageUrl?: string): Promise<string> {
+    const res = await apiFetch<{ answer: string }>(`/api/chats/${chatId}/messages`, {
         method: 'POST',
-        body: JSON.stringify({ content: message }),
+        body: JSON.stringify({ content, imageUrl }),
     })
     return res.answer
 }
 
-/** 특정 아이의 상담 방 목록 가져오기 */
+/** 상담 방 목록 가져오기 */
 export async function getChatRooms(childId: number): Promise<number[]> {
-    return apiFetch<number[]>(`/api/chat/rooms/list/${childId}`)
+    return apiFetch<number[]>(`/api/chats/child/${childId}`)
 }
 
-/** 특정 방의 과거 대화 내역 가져오기 */
+/** 대화 내역 가져오기 */
 export async function getChatHistory(chatId: number): Promise<ChatDetailResponse[]> {
-    return apiFetch<ChatDetailResponse[]>(`/api/chat/rooms/${chatId}/messages`)
+    return apiFetch<ChatDetailResponse[]>(`/api/chats/${chatId}/messages`)
+}
+
+/** 분석 결과 업데이트 (신규) */
+export async function updateChatAnalysis(chatId: number, category: string, riskLevel: string): Promise<any> {
+    return apiFetch(`/api/chats/${chatId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+            category,
+            risk_level: riskLevel
+        }),
+    })
 }

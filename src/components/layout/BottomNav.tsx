@@ -44,7 +44,7 @@ export function BottomNav() {
     ]
 
     return (
-        <nav className="relative z-[100] flex h-[72px] w-full shrink-0 items-center justify-around border-t border-[rgba(82,183,136,0.12)] bg-white px-6 pb-safe dark:border-slate-800 dark:bg-slate-950 shadow-[0_-10px_30px_rgba(0,0,0,0.05)]">
+        <nav className="relative z-[100] flex h-[72px] w-full shrink-0 items-center justify-around border-t border-[rgba(82,183,136,0.12)] bg-white px-6 pb-safe shadow-[0_-10px_30px_rgba(0,0,0,0.05)]">
             {tabs.map((tab) => {
                 const active = pathname === tab.path
                 return (
@@ -54,7 +54,7 @@ export function BottomNav() {
                         className="flex flex-col items-center gap-1 transition-transform active:scale-90"
                     >
                         {tab.icon(active)}
-                        <span className={`text-[10px] font-semibold ${active ? 'text-[#52B788]' : 'text-[#94A3B8] dark:text-slate-400'}`}>
+                        <span className={`text-[10px] font-semibold ${active ? 'text-[#52B788]' : 'text-[#94A3B8]'}`}>
                             {tab.label}
                         </span>
                     </button>

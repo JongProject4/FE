@@ -78,8 +78,7 @@ export default function ChatPage() {
           return
         }
         const newRoom = await createChat({
-          childId: children[0].id,
-          title: text.slice(0, 20) || '새 상담'
+          childId: children[0].id
         })
         currentRoomId = String(newRoom.chatId)
         setConsultationId(currentRoomId)
