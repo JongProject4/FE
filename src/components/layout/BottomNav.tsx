@@ -44,7 +44,7 @@ export function BottomNav() {
     ]
 
     return (
-        <nav className="flex flex-shrink-0 items-center justify-around border-t border-[rgba(82,183,136,0.12)] bg-white px-6 py-2 pb-safe dark:border-slate-800 dark:bg-slate-950">
+        <nav className="fixed bottom-0 left-1/2 z-50 flex w-full max-w-[430px] -translate-x-1/2 items-center justify-around border-t border-[rgba(82,183,136,0.12)] bg-white px-6 py-3 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] dark:border-slate-800 dark:bg-slate-950 dark:shadow-[0_-4px_30px_rgba(0,0,0,0.3)]">
             {tabs.map((tab) => {
                 const active = pathname === tab.path
                 return (
