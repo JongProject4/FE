@@ -1,0 +1,10 @@
+4af144c fix: revert chat to use sendChatMessage via api.ts (direct backend call with API_BASE_URL)
+725da42 feat: resolve chat API POST error, add TTS and SSE streaming support
+c98b70c fix: make API route dynamic to fix 404 on Vercel
+1349477 fix: add rewrites proxy for /api/chat to Spring Boot backend
+eb85933 Force Vercel redeploy - build fix confirmed
+997f17e fix: add missing useAppStore import - fixes build failure on Vercel
+8d7f0a8 feat: rewrite /api/chat as a proxy route to Spring Boot backend - fixes 404
+256d631 Fix apple-mobile-web-app-capable warning in layout
+4933710 Fix missing icons in manifest by using logo.png
+1910915 Final fix: create /api/chat route and ensure absolute API base URL

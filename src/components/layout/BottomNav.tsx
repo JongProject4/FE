@@ -44,17 +44,17 @@ export function BottomNav() {
     ]
 
     return (
-        <nav className="flex items-center justify-around bg-white border-t border-[rgba(82,183,136,0.12)] py-2 px-6 flex-shrink-0">
+        <nav className="flex flex-shrink-0 items-center justify-around border-t border-[rgba(82,183,136,0.12)] bg-white px-6 py-2 pb-safe dark:border-slate-800 dark:bg-slate-950">
             {tabs.map((tab) => {
                 const active = pathname === tab.path
                 return (
                     <button
                         key={tab.id}
                         onClick={() => router.push(tab.path)}
-                        className="flex flex-col items-center gap-1 active:scale-90 transition-transform"
+                        className="flex flex-col items-center gap-1 transition-transform active:scale-90"
                     >
                         {tab.icon(active)}
-                        <span className={`text-[10px] font-semibold ${active ? 'text-[#52B788]' : 'text-[#94A3B8]'}`}>
+                        <span className={`text-[10px] font-semibold ${active ? 'text-[#52B788]' : 'text-[#94A3B8] dark:text-slate-400'}`}>
                             {tab.label}
                         </span>
                     </button>

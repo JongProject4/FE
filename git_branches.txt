@@ -1,0 +1,5 @@
+* main
+  remotes/origin/dev
+  remotes/origin/feat/child
+  remotes/origin/feat/mypage
+  remotes/origin/main
