@@ -3,6 +3,7 @@
 // ✅ 메인 캘린더 페이지 - 모든 뷰를 조율합니다
 import { useState, useEffect } from 'react'
 import { CalendarGrid } from './CalendarGrid'
+import { WeeklyView } from './WeeklyView'
 import { DayPopup } from './DayPopup'
 import { ClinicForm } from './ClinicForm'
 import { MedForm } from './MedForm'
@@ -12,9 +13,7 @@ import { dateKey, calcAge } from './utils'
 import { BottomNav } from '@/components/layout/BottomNav'
 
 type View = 'calendar' | 'day' | 'clinic-form' | 'med-form' | 'success'
-
-// 샘플 아이들 주석 처리 또는 제거
-// const SAMPLE_CHILDREN: Child[] = ...
+type CalendarMode = 'monthly' | 'weekly'
 
 interface Props {
   initialChildren?: Child[]
@@ -29,6 +28,8 @@ export function CalendarPage({ initialChildren }: Props) {
   const [successMsg, setSuccessMsg] = useState({ title: '', sub: '' })
   const [children, setChildren] = useState<Child[]>(initialChildren || [])
   const [loading, setLoading] = useState(!initialChildren)
+  const [calendarMode, setCalendarMode] = useState<CalendarMode>('monthly')
+  const [weekOffset, setWeekOffset] = useState(0)
 
   const { events, addEvent, removeEvent, getEventsForDate, setEvents } = useCalendarStore()
 
@@ -47,7 +48,6 @@ export function CalendarPage({ initialChildren }: Props) {
         }))
         setChildren(mappedChildren)
 
-        // 아이가 있으면 첫 번째 아이의 기록 로드 (또는 전체)
         if (mappedChildren.length > 0) {
           const logs = await getHealthLogs(Number(mappedChildren[0].id))
 
@@ -141,17 +141,58 @@ export function CalendarPage({ initialChildren }: Props) {
       {/* ── 캘린더 뷰 ── */}
       {view === 'calendar' && (
         <div className="flex-1 overflow-y-auto px-5 pt-6 pb-6 mt-2">
-          <h1 className="text-[24px] font-black tracking-tight text-[#334155] mb-5">
-            캘린더
-          </h1>
-          <CalendarGrid
-            year={year}
-            month={month}
-            events={events}
-            onDayClick={handleDayClick}
-            onPrevMonth={handlePrevMonth}
-            onNextMonth={handleNextMonth}
-          />
+          {/* Header with toggle */}
+          <div className="flex items-center justify-between mb-5">
+            <h1 className="text-[24px] font-black tracking-tight text-[#334155]">
+              캘린더
+            </h1>
+            {/* Monthly / Weekly toggle button */}
+            <div className="flex items-center bg-white rounded-full shadow-sm border border-[rgba(82,183,136,0.2)] p-[3px]">
+              <button
+                onClick={() => setCalendarMode('monthly')}
+                className={`px-3 py-[5px] rounded-full text-[12px] font-semibold transition-all duration-200 ${calendarMode === 'monthly'
+                    ? 'bg-[#52B788] text-white shadow-sm'
+                    : 'text-[#64748B] hover:text-[#52B788]'
+                  }`}
+              >
+                월간
+              </button>
+              <button
+                onClick={() => { setCalendarMode('weekly'); setWeekOffset(0) }}
+                className={`px-3 py-[5px] rounded-full text-[12px] font-semibold transition-all duration-200 ${calendarMode === 'weekly'
+                    ? 'bg-[#52B788] text-white shadow-sm'
+                    : 'text-[#64748B] hover:text-[#52B788]'
+                  }`}
+              >
+                주간
+              </button>
+            </div>
+          </div>
+
+          {/* Monthly view */}
+          {calendarMode === 'monthly' && (
+            <CalendarGrid
+              year={year}
+              month={month}
+              events={events}
+              onDayClick={handleDayClick}
+              onPrevMonth={handlePrevMonth}
+              onNextMonth={handleNextMonth}
+            />
+          )}
+
+          {/* Weekly view */}
+          {calendarMode === 'weekly' && (
+            <WeeklyView
+              year={year}
+              month={month}
+              events={events}
+              onDayClick={handleDayClick}
+              onPrevWeek={() => setWeekOffset(w => w - 1)}
+              onNextWeek={() => setWeekOffset(w => w + 1)}
+              weekOffset={weekOffset}
+            />
+          )}
         </div>
       )}
 

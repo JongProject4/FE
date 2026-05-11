@@ -90,7 +90,7 @@ export function CalendarGrid({ year, month, events, onDayClick, onPrevMonth, onN
         {cells.map((cell, idx) => {
           const key = dateKey(cell.date)
           const dayEvents = events[key] || []
-          const hasClinc = dayEvents.some(e => e.type === 'clinic')
+          const hasClinic = dayEvents.some(e => e.type === 'clinic')
           const hasMed = dayEvents.some(e => e.type === 'med')
           const today = isToday(cell.date)
           const dow = cell.date.getDay()
@@ -100,27 +100,43 @@ export function CalendarGrid({ year, month, events, onDayClick, onPrevMonth, onN
               key={idx}
               onClick={() => cell.isCurrentMonth && onDayClick(cell.date)}
               className={`min-h-[52px] rounded-[8px] p-1 flex flex-col items-center transition-colors ${cell.isCurrentMonth
-                ? 'hover:bg-[rgba(82,183,136,0.08)] active:scale-95 cursor-pointer'
-                : 'cursor-default opacity-30'
+                  ? 'hover:bg-[rgba(82,183,136,0.08)] active:scale-95 cursor-pointer'
+                  : 'cursor-default opacity-30'
                 }`}
             >
               <div
                 className={`w-7 h-7 flex items-center justify-center text-[13px] leading-none mb-1 ${today
-                  ? 'rounded-full bg-[#52B788] text-white font-semibold'
-                  : dow === 0
-                    ? 'text-[#E24B4A]'
-                    : dow === 6
-                      ? 'text-[#4A90D9]'
-                      : 'text-[#334155]'
+                    ? 'rounded-full bg-[#52B788] text-white font-semibold'
+                    : dow === 0
+                      ? 'text-[#E24B4A]'
+                      : dow === 6
+                        ? 'text-[#4A90D9]'
+                        : 'text-[#334155]'
                   }`}
               >
                 {cell.date.getDate()}
               </div>
               {/* Event dots */}
               <div className="flex gap-[3px]">
-                {hasClinc && <div className="w-[5px] h-[5px] rounded-full bg-[#52B788]" />}
+                {hasClinic && <div className="w-[5px] h-[5px] rounded-full bg-[#52B788]" />}
                 {hasMed && <div className="w-[5px] h-[5px] rounded-full bg-[#6EE7B7]" />}
               </div>
+              {/* Mini event label - oylik ko'rinishda bitta label */}
+              {dayEvents.length > 0 && cell.isCurrentMonth && (
+                <div className="mt-[2px] w-full flex flex-col items-center gap-[2px]">
+                  <span
+                    className={`text-[7px] px-[3px] py-[1px] rounded leading-tight text-white truncate max-w-full ${dayEvents[0].type === 'clinic' ? 'bg-[#52B788]' : 'bg-[#6EE7B7]'
+                      }`}
+                  >
+                    {dayEvents[0].type === 'clinic'
+                      ? (dayEvents[0] as any).hospital
+                      : (dayEvents[0] as any).medName}
+                  </span>
+                  {dayEvents.length > 1 && (
+                    <span className="text-[7px] text-[#94A3B8]">+{dayEvents.length - 1}</span>
+                  )}
+                </div>
+              )}
             </button>
           )
         })}
