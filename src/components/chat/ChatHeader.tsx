@@ -1,25 +1,109 @@
 'use client'
 // src/components/chat/ChatHeader.tsx
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
-import { removeAccessToken } from '@/lib/api'
+import { removeAccessToken, getChildren, getChatRooms, getChatHistory } from '@/lib/api'
+import { useAppStore } from '@/lib/store'
 
-const MOCK_HISTORY = [
-  { id: 1, title: '열이 38도까지 올라가요', date: '오늘' },
-  { id: 2, title: '계속 기침을 하고 밤에 잠을 못자요', date: '어제' },
-  { id: 3, title: '예방접종 후 미열 상담', date: '지난 주' },
-  { id: 4, title: '우유 알레르기 증상 문의', date: '지난 주' },
-  { id: 5, title: '아이 두통 상담', date: '지난 주' },
-]
+interface ChatHistoryItem {
+  id: number
+  title: string
+  date: string
+}
 
 export function ChatHeader() {
   const router = useRouter()
   const [isOpen, setIsOpen] = useState(false)
+  const [history, setHistory] = useState<ChatHistoryItem[]>([])
+  const [loading, setLoading] = useState(false)
+  const [userInitial, setUserInitial] = useState('U')
+  const { setConsultationId, setMessages, clearMessages } = useAppStore()
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const { getMe } = await import('@/lib/api')
+        const me = await getMe()
+        if (me.name) {
+          setUserInitial(me.name.charAt(0).toUpperCase())
+        }
+      } catch (e) {
+        console.error('Failed to fetch user', e)
+      }
+    }
+    fetchUser()
+  }, [])
 
   const handleLogout = () => {
     removeAccessToken()
     router.push('/login')
+  }
+
+  const loadHistory = async () => {
+    setLoading(true)
+    try {
+      const children = await getChildren()
+      if (children.length > 0) {
+        let allRooms: ChatHistoryItem[] = []
+
+        // Fetch rooms for all children
+        for (const child of children) {
+          const roomIds = await getChatRooms(child.id)
+          if (Array.isArray(roomIds)) {
+            // Sort by ID descending to get most recent first
+            const sortedIds = [...roomIds].sort((a, b) => b - a).slice(0, 10)
+
+            for (const id of sortedIds) {
+              // Try to get the first message for the title
+              let title = `${child.name}의 상담 #${id}`
+              try {
+                const messages = await getChatHistory(id)
+                const firstUserMsg = messages.find(m => m.role === 'USER')
+                if (firstUserMsg) {
+                  title = firstUserMsg.content.length > 20
+                    ? firstUserMsg.content.substring(0, 20) + '...'
+                    : firstUserMsg.content
+                }
+              } catch (e) {
+                console.error(`Failed to load title for chat ${id}`, e)
+              }
+
+              allRooms.push({
+                id,
+                title,
+                date: '최근'
+              })
+            }
+          }
+        }
+        // Final sort by ID across all children
+        setHistory(allRooms.sort((a, b) => b.id - a.id))
+      }
+    } catch (err) {
+      console.error('Failed to load history:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (isOpen) {
+      loadHistory()
+    }
+  }, [isOpen])
+
+  const handleChatClick = (chatId: number) => {
+    setConsultationId(String(chatId))
+    setMessages([]) // Clear local messages to trigger reload in ChatPage
+    setIsOpen(false)
+    router.push('/chat')
+  }
+
+  const handleNewChat = () => {
+    clearMessages()
+    setIsOpen(false)
+    router.push('/chat')
   }
 
   return (
@@ -38,7 +122,7 @@ export function ChatHeader() {
 
           {/* Header Logo */}
           <div className="flex items-center gap-2">
-            <span className="text-[22px] font-black tracking-tight text-[#52B788] serif">AIYA</span>
+            <span className="text-[22px] font-black tracking-tight text-[#52B788] serif cursor-pointer" onClick={() => router.push('/chat')}>AIYA</span>
           </div>
         </div>
       </header>
@@ -67,13 +151,13 @@ export function ChatHeader() {
             >
               {/* Sidebar Header (Logo) */}
               <div className="px-5 pt-8 pb-6 bg-white">
-                <h1 className="text-[28px] font-black text-[#52B788] tracking-tighter">AIYA</h1>
+                <h1 className="text-[28px] font-black text-[#52B788] tracking-tighter cursor-pointer" onClick={() => { setIsOpen(false); router.push('/chat') }}>AIYA</h1>
               </div>
 
               {/* Main Menu Links */}
               <div className="px-3 flex flex-col gap-1 pb-4">
                 <button
-                  onClick={() => { setIsOpen(false); router.push('/chat') }}
+                  onClick={handleNewChat}
                   className="w-full flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-[rgba(82,183,136,0.08)] active:bg-[rgba(82,183,136,0.12)] transition-colors text-left"
                 >
                   <div className="text-[#52B788]">
@@ -105,11 +189,21 @@ export function ChatHeader() {
               <div className="flex-1 overflow-y-auto px-2 pt-6 pb-2">
                 <h2 className="px-4 text-[13px] font-bold text-[#52B788] mb-2 uppercase tracking-wider">최근 상담</h2>
                 <div className="space-y-0.5 mt-3">
-                  {MOCK_HISTORY.map((chat) => (
-                    <button key={chat.id} className="w-full text-left py-3 px-4 rounded-xl hover:bg-[rgba(82,183,136,0.06)] active:scale-[0.98] transition-all truncate text-[14px] font-medium text-[#334155]">
-                      {chat.title}
-                    </button>
-                  ))}
+                  {loading ? (
+                    <div className="px-4 py-3 text-[14px] text-[#94A3B8] animate-pulse">로딩 중...</div>
+                  ) : history.length > 0 ? (
+                    history.map((chat) => (
+                      <button
+                        key={chat.id}
+                        onClick={() => handleChatClick(chat.id)}
+                        className="w-full text-left py-3.5 px-4 rounded-xl hover:bg-[rgba(82,183,136,0.06)] active:scale-[0.98] transition-all truncate text-[14px] font-medium text-[#334155]"
+                      >
+                        {chat.title}
+                      </button>
+                    ))
+                  ) : (
+                    <div className="px-4 py-3 text-[14px] text-[#94A3B8]">상담 내역이 없습니다.</div>
+                  )}
                 </div>
               </div>
 
@@ -118,7 +212,7 @@ export function ChatHeader() {
                 <div className="flex items-center justify-between p-2 rounded-xl hover:bg-[#FFF0F0] text-[#475569] hover:text-[#FF5A5A] transition-colors cursor-pointer group" onClick={handleLogout}>
                   <div className="flex items-center gap-3">
                     <div className="w-9 h-9 rounded-full bg-[rgba(82,183,136,0.12)] flex items-center justify-center text-[#52B788] text-[15px] font-bold group-hover:bg-[#FF5A5A] group-hover:text-white transition-colors">
-                      U
+                      {userInitial}
                     </div>
                     <span className="text-[15px] font-bold">로그아웃</span>
                   </div>
@@ -138,3 +232,4 @@ export function ChatHeader() {
     </>
   )
 }
+

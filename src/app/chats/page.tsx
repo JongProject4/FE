@@ -18,17 +18,40 @@ export default function ChatsPage() {
     useEffect(() => {
         const loadHistory = async () => {
             try {
+                const { getChildren, getChatRooms, getChatHistory } = await import('@/lib/api')
                 const children = await getChildren()
                 if (children.length > 0) {
-                    const roomIds = await getChatRooms(children[0].id)
-                    if (Array.isArray(roomIds)) {
-                        const mapped = roomIds.map(id => ({
-                            id,
-                            title: `상담 #${id}`,
-                            date: '최근 상담'
-                        }))
-                        setChats(mapped)
+                    const allMapped: { id: number, title: string, date: string }[] = []
+
+                    for (const child of children) {
+                        const roomIds = await getChatRooms(child.id)
+                        if (Array.isArray(roomIds)) {
+                            // Sort by ID descending
+                            const sortedIds = [...roomIds].sort((a, b) => b - a)
+
+                            for (const id of sortedIds) {
+                                let title = `${child.name}의 상담 #${id}`
+                                try {
+                                    const messages = await getChatHistory(id)
+                                    const firstUserMsg = messages.find(m => m.role === 'USER')
+                                    if (firstUserMsg) {
+                                        title = firstUserMsg.content.length > 30
+                                            ? firstUserMsg.content.substring(0, 30) + '...'
+                                            : firstUserMsg.content
+                                    }
+                                } catch (e) {
+                                    console.error(`Failed to load title for chat ${id}`, e)
+                                }
+
+                                allMapped.push({
+                                    id,
+                                    title,
+                                    date: '최근 상담'
+                                })
+                            }
+                        }
                     }
+                    setChats(allMapped.sort((a, b) => b.id - a.id))
                 }
             } catch (err) {
                 console.error('History load failed', err)
