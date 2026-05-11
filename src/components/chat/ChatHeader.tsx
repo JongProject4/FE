@@ -41,15 +41,19 @@ export function ChatHeader() {
   }
 
   const loadHistory = async () => {
+    console.log('[ChatHeader] loadHistory called')
     setLoading(true)
     try {
       const children = await getChildren()
+      console.log('[ChatHeader] children:', JSON.stringify(children))
       if (children.length > 0) {
         let allRooms: ChatHistoryItem[] = []
 
         // Fetch rooms for all children
         for (const child of children) {
+          console.log('[ChatHeader] fetching rooms for child:', child.id, child.name)
           const roomIds = await getChatRooms(child.id)
+          console.log('[ChatHeader] roomIds:', JSON.stringify(roomIds))
           if (Array.isArray(roomIds)) {
             // Sort by ID descending to get most recent first
             const sortedIds = [...roomIds].sort((a, b) => b - a).slice(0, 10)
@@ -59,6 +63,7 @@ export function ChatHeader() {
               let title = `${child.name}의 상담 #${id}`
               try {
                 const messages = await getChatHistory(id)
+                console.log(`[ChatHeader] chat ${id} messages count:`, messages.length)
                 const firstUserMsg = messages.find(m => m.role === 'USER')
                 if (firstUserMsg) {
                   title = firstUserMsg.content.length > 20
@@ -66,7 +71,7 @@ export function ChatHeader() {
                     : firstUserMsg.content
                 }
               } catch (e) {
-                console.error(`Failed to load title for chat ${id}`, e)
+                console.error(`[ChatHeader] Failed to load title for chat ${id}`, e)
               }
 
               allRooms.push({
@@ -77,11 +82,15 @@ export function ChatHeader() {
             }
           }
         }
+        console.log('[ChatHeader] final allRooms:', JSON.stringify(allRooms))
         // Final sort by ID across all children
         setHistory(allRooms.sort((a, b) => b.id - a.id))
+      } else {
+        console.log('[ChatHeader] No children found')
+        setHistory([])
       }
     } catch (err) {
-      console.error('Failed to load history:', err)
+      console.error('[ChatHeader] Failed to load history:', err)
     } finally {
       setLoading(false)
     }
