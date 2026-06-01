@@ -130,21 +130,24 @@ export function VoiceMode({ isOpen, onClose, onSend, onSendVoice, disabled }: Pr
             stopAllAudio()
             const stream = await navigator.mediaDevices.getUserMedia({
                 audio: {
-                    sampleRate: 16000,
                     channelCount: 1,
                     echoCancellation: true,
                     noiseSuppression: true,
+                    autoGainControl: true,
                 }
             })
 
-            // Try to use a codec the backend likes
+            // Backend supports WEBM_OPUS at 48kHz — Chrome default
             const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
                 ? 'audio/webm;codecs=opus'
-                : MediaRecorder.isTypeSupported('audio/mp4')
-                    ? 'audio/mp4'
-                    : 'audio/webm'
+                : MediaRecorder.isTypeSupported('audio/webm')
+                    ? 'audio/webm'
+                    : ''
 
-            const mediaRecorder = new MediaRecorder(stream, { mimeType })
+            const recorderOptions: MediaRecorderOptions = {}
+            if (mimeType) recorderOptions.mimeType = mimeType
+
+            const mediaRecorder = new MediaRecorder(stream, recorderOptions)
             mediaRecorderRef.current = mediaRecorder
             audioChunksRef.current = []
 
@@ -154,10 +157,13 @@ export function VoiceMode({ isOpen, onClose, onSend, onSendVoice, disabled }: Pr
 
             // When recording stops, automatically send to backend
             mediaRecorder.onstop = async () => {
-                const audioBlob = new Blob(audioChunksRef.current, { type: mimeType })
+                const finalMime = mediaRecorder.mimeType || mimeType || 'audio/webm'
+                const audioBlob = new Blob(audioChunksRef.current, { type: finalMime })
                 stream.getTracks().forEach(t => t.stop())
 
-                if (audioBlob.size < 1000) {
+                console.log(`[VoiceMode] Recording done: ${audioBlob.size} bytes, mime=${finalMime}`)
+
+                if (audioBlob.size < 500) {
                     setStatusText('음성이 너무 짧습니다. 다시 말씀하세요.')
                     setVoiceState('idle')
                     return
@@ -167,7 +173,7 @@ export function VoiceMode({ isOpen, onClose, onSend, onSendVoice, disabled }: Pr
                 await handleVoiceToBackend(audioBlob)
             }
 
-            mediaRecorder.start()
+            mediaRecorder.start(200) // collect data every 200ms
             setVoiceState('listening')
             setTranscript('')
             setAiText('')
@@ -458,12 +464,12 @@ export function VoiceMode({ isOpen, onClose, onSend, onSendVoice, disabled }: Pr
                             disabled={voiceState === 'processing'}
                             whileTap={{ scale: 0.9 }}
                             className={`w-16 h-16 rounded-full flex items-center justify-center transition-all shadow-lg ${voiceState === 'listening'
-                                    ? 'bg-red-500 shadow-red-500/40'
-                                    : voiceState === 'speaking'
-                                        ? 'bg-emerald-500 shadow-emerald-500/40'
-                                        : voiceState === 'processing'
-                                            ? 'bg-amber-500/50 shadow-amber-500/20 cursor-wait'
-                                            : 'bg-white shadow-white/20'
+                                ? 'bg-red-500 shadow-red-500/40'
+                                : voiceState === 'speaking'
+                                    ? 'bg-emerald-500 shadow-emerald-500/40'
+                                    : voiceState === 'processing'
+                                        ? 'bg-amber-500/50 shadow-amber-500/20 cursor-wait'
+                                        : 'bg-white shadow-white/20'
                                 }`}
                         >
                             {voiceState === 'listening' ? (
