@@ -59,7 +59,17 @@ async function apiFetch<T>(
     // 204 No Content 등 body 없는 응답 처리
     if (res.status === 204) return undefined as T
 
-    return res.json()
+    const text = await res.text()
+    if (!text || text.trim() === '') {
+        return undefined as T
+    }
+
+    try {
+        return JSON.parse(text)
+    } catch (e) {
+        // If for some reason the text isn't JSON, just return it as any (or throw)
+        return text as unknown as T
+    }
 }
 
 // ============================================================
