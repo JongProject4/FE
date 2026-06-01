@@ -15,6 +15,57 @@ interface Props {
     disabled?: boolean
 }
 
+// WAV Encoder utility function to guarantee 16kHz LINEAR16 formatting
+function audioBufferToWavBlob(buffer: AudioBuffer): Blob {
+    const numChannels = buffer.numberOfChannels;
+    const sampleRate = buffer.sampleRate;
+    const bitDepth = 16;
+    let result: Float32Array;
+
+    if (numChannels === 2) {
+        const left = buffer.getChannelData(0);
+        const right = buffer.getChannelData(1);
+        result = new Float32Array(left.length * 2);
+        for (let i = 0; i < left.length; i++) {
+            result[i * 2] = left[i];
+            result[i * 2 + 1] = right[i];
+        }
+    } else {
+        result = buffer.getChannelData(0);
+    }
+
+    const bytesPerSample = bitDepth / 8;
+    const blockAlign = numChannels * bytesPerSample;
+    const wavBuffer = new ArrayBuffer(44 + result.length * bytesPerSample);
+    const view = new DataView(wavBuffer);
+
+    const writeString = (view: DataView, offset: number, string: string) => {
+        for (let i = 0; i < string.length; i++) view.setUint8(offset + i, string.charCodeAt(i));
+    };
+
+    writeString(view, 0, 'RIFF');
+    view.setUint32(4, 36 + result.length * bytesPerSample, true);
+    writeString(view, 8, 'WAVE');
+    writeString(view, 12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true); // PCM
+    view.setUint16(22, numChannels, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * blockAlign, true);
+    view.setUint16(32, blockAlign, true);
+    view.setUint16(34, bitDepth, true);
+    writeString(view, 36, 'data');
+    view.setUint32(40, result.length * bytesPerSample, true);
+
+    let offset = 44;
+    for (let i = 0; i < result.length; i++, offset += 2) {
+        let s = Math.max(-1, Math.min(1, result[i]));
+        view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+    }
+
+    return new Blob([wavBuffer], { type: 'audio/wav' });
+}
+
 type VoiceState = 'idle' | 'listening' | 'processing' | 'speaking'
 
 export function VoiceMode({ isOpen, onClose, onSend, onSendVoice, disabled }: Props) {
@@ -169,8 +220,26 @@ export function VoiceMode({ isOpen, onClose, onSend, onSendVoice, disabled }: Pr
                     return
                 }
 
-                // Automatically send voice to backend SSE
-                await handleVoiceToBackend(audioBlob)
+                setStatusText('음성을 분석하고 있습니다...')
+                setVoiceState('processing')
+                setAiText('')
+
+                try {
+                    // Convert whatever format the browser recorded into 16000Hz WAV
+                    // This perfectly matches the backend Google STT expectations for LINEAR16
+                    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 })
+                    const arrayBuffer = await audioBlob.arrayBuffer()
+                    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer)
+
+                    const wavBlob = audioBufferToWavBlob(audioBuffer)
+                    console.log(`[VoiceMode] Converted to WAV, new size: ${wavBlob.size} bytes`)
+
+                    await handleVoiceToBackend(wavBlob)
+                } catch (e) {
+                    console.error('Audio conversion failed:', e)
+                    // fallback to original if conversion fails
+                    await handleVoiceToBackend(audioBlob)
+                }
             }
 
             mediaRecorder.start(200) // collect data every 200ms
