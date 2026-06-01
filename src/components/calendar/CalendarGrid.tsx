@@ -99,33 +99,16 @@ export function CalendarGrid({ year, month, events, onDayClick, onPrevMonth, onN
             <button
               key={idx}
               onClick={() => cell.isCurrentMonth && onDayClick(cell.date)}
-              className={`min-h-[52px] rounded-[8px] p-1 flex flex-col items-center transition-colors ${cell.isCurrentMonth
-                  ? 'hover:bg-[rgba(82,183,136,0.08)] active:scale-95 cursor-pointer'
-                  : 'cursor-default opacity-30'
+              className={`min-h-[72px] rounded-[8px] p-1 flex flex-col items-center justify-end transition-colors relative ${cell.isCurrentMonth
+                ? 'hover:bg-[rgba(82,183,136,0.08)] hover:shadow-sm active:scale-95 cursor-pointer'
+                : 'cursor-default opacity-30'
                 }`}
             >
-              <div
-                className={`w-7 h-7 flex items-center justify-center text-[13px] leading-none mb-1 ${today
-                    ? 'rounded-full bg-[#52B788] text-white font-semibold'
-                    : dow === 0
-                      ? 'text-[#E24B4A]'
-                      : dow === 6
-                        ? 'text-[#4A90D9]'
-                        : 'text-[#334155]'
-                  }`}
-              >
-                {cell.date.getDate()}
-              </div>
-              {/* Event dots */}
-              <div className="flex gap-[3px]">
-                {hasClinic && <div className="w-[5px] h-[5px] rounded-full bg-[#52B788]" />}
-                {hasMed && <div className="w-[5px] h-[5px] rounded-full bg-[#6EE7B7]" />}
-              </div>
-              {/* Mini event label - oylik ko'rinishda bitta label */}
-              {dayEvents.length > 0 && cell.isCurrentMonth && (
-                <div className="mt-[2px] w-full flex flex-col items-center gap-[2px]">
+              {/* Mini event label - moved ABOVE the date */}
+              {dayEvents.length > 0 && cell.isCurrentMonth ? (
+                <div className="absolute top-1 w-full flex flex-col items-center gap-[2px]">
                   <span
-                    className={`text-[7px] px-[3px] py-[1px] rounded leading-tight text-white truncate max-w-full ${dayEvents[0].type === 'clinic' ? 'bg-[#52B788]' : 'bg-[#6EE7B7]'
+                    className={`text-[8px] font-bold px-[4px] py-[2px] rounded-sm leading-tight text-white truncate max-w-[90%] shadow-sm ${dayEvents[0].type === 'clinic' ? 'bg-[#E24B4A]' : 'bg-[#52B788]'
                       }`}
                   >
                     {dayEvents[0].type === 'clinic'
@@ -133,10 +116,32 @@ export function CalendarGrid({ year, month, events, onDayClick, onPrevMonth, onN
                       : (dayEvents[0] as any).medName}
                   </span>
                   {dayEvents.length > 1 && (
-                    <span className="text-[7px] text-[#94A3B8]">+{dayEvents.length - 1}</span>
+                    <span className="text-[7px] font-bold text-[#94A3B8]">+{dayEvents.length - 1}</span>
                   )}
                 </div>
+              ) : (
+                <div className="flex-1" /> // Spacer when no events
               )}
+
+              {/* Event dots */}
+              <div className="flex gap-[3px] mb-[2px]">
+                {hasClinic && <div className="w-[5px] h-[5px] rounded-full bg-[#E24B4A] shadow-sm" />}
+                {hasMed && <div className="w-[5px] h-[5px] rounded-full bg-[#52B788] shadow-sm" />}
+              </div>
+
+              {/* Date */}
+              <div
+                className={`w-7 h-7 flex items-center justify-center text-[13px] leading-none ${today
+                  ? 'rounded-full bg-[#52B788] text-white font-semibold shadow-md'
+                  : dow === 0
+                    ? 'text-[#E24B4A] font-medium'
+                    : dow === 6
+                      ? 'text-[#4A90D9] font-medium'
+                      : 'text-[#334155] font-medium'
+                  }`}
+              >
+                {cell.date.getDate()}
+              </div>
             </button>
           )
         })}

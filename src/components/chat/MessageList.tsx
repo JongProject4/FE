@@ -64,9 +64,16 @@ function AIBubble({ msg }: { msg: Message }) {
                   </button>
                 )}
                 {risk && !msg.isStreaming && (
-                  <span className={`inline-block px-2.5 py-1 rounded-full text-[11px] font-bold ${risk.cls}`}>
-                    {risk.label}
-                  </span>
+                  <div className="flex gap-1.5 ml-auto">
+                    {msg.diagnosis && (
+                      <span className="inline-block px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#F3F4F6] text-[#475569]">
+                        진단: {msg.diagnosis}
+                      </span>
+                    )}
+                    <span className={`inline-block px-2.5 py-1 rounded-full text-[11px] font-bold ${risk.cls}`}>
+                      {risk.label}
+                    </span>
+                  </div>
                 )}
               </div>
             </>

@@ -17,8 +17,16 @@ export interface Message {
   content: string
   imageUrl?: string
   timestamp: string
-  riskLevel?: 'LOW' | 'MEDIUM' | 'HIGH'
+  riskLevel?: 'LOW' | 'MEDIUM' | 'HIGH' // UI: LOW, MEDIUM, HIGH
+  diagnosis?: string
   isStreaming?: boolean
+}
+
+export interface ChatSession {
+  id: number
+  title: string
+  date: string
+  childName: string
 }
 
 interface AppStore {
@@ -27,15 +35,20 @@ interface AppStore {
   messages: Message[]
   consultationId: string | null
   isLoading: boolean
+  chatSessions: ChatSession[]
+  historyLoaded: boolean
 
   setSelectedChild: (id: string) => void
   setChildren: (children: Child[]) => void
   addMessage: (msg: Message) => void
-  updateLastMessage: (content: string, done?: boolean, riskLevel?: string) => void
+  updateLastMessage: (content: string, done?: boolean, riskLevel?: string, diagnosis?: string) => void
   clearMessages: () => void
   setConsultationId: (id: string | null) => void
   setMessages: (messages: Message[]) => void
   setLoading: (v: boolean) => void
+  setChatSessions: (sessions: ChatSession[]) => void
+  addChatSession: (session: ChatSession) => void
+  setHistoryLoaded: (v: boolean) => void
 }
 
 export const useAppStore = create<AppStore>()(
@@ -46,11 +59,13 @@ export const useAppStore = create<AppStore>()(
       messages: [],
       consultationId: null,
       isLoading: false,
+      chatSessions: [],
+      historyLoaded: false,
 
       setSelectedChild: (id) => set({ selectedChildId: id, messages: [], consultationId: null }),
       setChildren: (children) => set({ children }),
       addMessage: (msg) => set((s) => ({ messages: [...s.messages, msg] })),
-      updateLastMessage: (content, done, riskLevel) =>
+      updateLastMessage: (content, done, riskLevel, diagnosis) =>
         set((s) => {
           const msgs = [...s.messages]
           const last = msgs[msgs.length - 1]
@@ -60,6 +75,7 @@ export const useAppStore = create<AppStore>()(
               content,
               isStreaming: !done,
               riskLevel: (riskLevel as any) || last.riskLevel,
+              diagnosis: diagnosis || last.diagnosis,
             }
           }
           return { messages: msgs }
@@ -68,6 +84,14 @@ export const useAppStore = create<AppStore>()(
       setConsultationId: (id) => set({ consultationId: id }),
       setMessages: (messages) => set({ messages }),
       setLoading: (v) => set({ isLoading: v }),
+      setChatSessions: (sessions) => set({ chatSessions: sessions }),
+      addChatSession: (session) =>
+        set((s) => {
+          // Add new session to the top, avoid duplicates
+          const filtered = s.chatSessions.filter((c) => c.id !== session.id)
+          return { chatSessions: [session, ...filtered] }
+        }),
+      setHistoryLoaded: (v) => set({ historyLoaded: v }),
     }),
     {
       name: 'pediatric-ai-store',

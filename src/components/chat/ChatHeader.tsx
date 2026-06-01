@@ -4,21 +4,21 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { removeAccessToken, getChildren, getChatRooms, getChatHistory } from '@/lib/api'
-import { useAppStore } from '@/lib/store'
+import { useAppStore, ChatSession } from '@/lib/store'
 
-interface ChatHistoryItem {
-  id: number
-  title: string
-  date: string
+interface ChatHeaderProps {
+  onNewChat?: () => void
 }
 
-export function ChatHeader() {
+export function ChatHeader({ onNewChat }: ChatHeaderProps = {}) {
   const router = useRouter()
   const [isOpen, setIsOpen] = useState(false)
-  const [history, setHistory] = useState<ChatHistoryItem[]>([])
   const [loading, setLoading] = useState(false)
   const [userInitial, setUserInitial] = useState('U')
-  const { setConsultationId, setMessages, clearMessages } = useAppStore()
+  const {
+    setConsultationId, setMessages, clearMessages,
+    chatSessions, setChatSessions, historyLoaded, setHistoryLoaded
+  } = useAppStore()
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -40,34 +40,37 @@ export function ChatHeader() {
     router.push('/login')
   }
 
-  const loadHistory = async () => {
+  const loadHistory = async (forceRefresh = false) => {
+    // Already loaded and not forced — use cached sessions
+    if (historyLoaded && !forceRefresh && chatSessions.length > 0) return
+
     console.log('[ChatHeader] loadHistory called')
     setLoading(true)
     try {
       const children = await getChildren()
       console.log('[ChatHeader] children:', JSON.stringify(children))
       if (children.length > 0) {
-        let allRooms: ChatHistoryItem[] = []
+        let allRooms: ChatSession[] = []
 
-        // Fetch rooms for all children
         for (const child of children) {
           console.log('[ChatHeader] fetching rooms for child:', child.id, child.name)
           const roomIds = await getChatRooms(child.id)
           console.log('[ChatHeader] roomIds:', JSON.stringify(roomIds))
           if (Array.isArray(roomIds)) {
-            // Sort by ID descending to get most recent first
-            const sortedIds = [...roomIds].sort((a, b) => b - a).slice(0, 10)
+            const parsedIds = roomIds.map((item: any) =>
+              typeof item === 'object' && item !== null ? (item.chatId || item.id) : item
+            ).map(Number).filter(id => !isNaN(id))
+
+            const sortedIds = [...parsedIds].sort((a, b) => b - a).slice(0, 15)
 
             for (const id of sortedIds) {
-              // Try to get the first message for the title
               let title = `${child.name}의 상담 #${id}`
               try {
                 const messages = await getChatHistory(id)
-                console.log(`[ChatHeader] chat ${id} messages count:`, messages.length)
                 const firstUserMsg = messages.find(m => m.role === 'USER')
                 if (firstUserMsg) {
-                  title = firstUserMsg.content.length > 20
-                    ? firstUserMsg.content.substring(0, 20) + '...'
+                  title = firstUserMsg.content.length > 25
+                    ? firstUserMsg.content.substring(0, 25) + '...'
                     : firstUserMsg.content
                 }
               } catch (e) {
@@ -77,17 +80,20 @@ export function ChatHeader() {
               allRooms.push({
                 id,
                 title,
-                date: '최근'
+                date: new Date().toLocaleDateString('ko-KR'),
+                childName: child.name,
               })
             }
           }
         }
-        console.log('[ChatHeader] final allRooms:', JSON.stringify(allRooms))
-        // Final sort by ID across all children
-        setHistory(allRooms.sort((a, b) => b.id - a.id))
+        const sorted = allRooms.sort((a, b) => b.id - a.id)
+        console.log('[ChatHeader] final allRooms:', JSON.stringify(sorted))
+        setChatSessions(sorted)
+        setHistoryLoaded(true)
       } else {
         console.log('[ChatHeader] No children found')
-        setHistory([])
+        setChatSessions([])
+        setHistoryLoaded(true)
       }
     } catch (err) {
       console.error('[ChatHeader] Failed to load history:', err)
@@ -110,9 +116,13 @@ export function ChatHeader() {
   }
 
   const handleNewChat = () => {
-    clearMessages()
+    clearMessages() // This also clears consultationId
     setIsOpen(false)
-    router.push('/chat')
+    if (onNewChat) {
+      onNewChat()
+    } else {
+      router.push('/chat')
+    }
   }
 
   return (
@@ -134,6 +144,19 @@ export function ChatHeader() {
             <span className="text-[22px] font-black tracking-tight text-[#52B788] serif cursor-pointer" onClick={() => router.push('/chat')}>AIYA</span>
           </div>
         </div>
+
+        {/* New Chat button on right side */}
+        <button
+          onClick={handleNewChat}
+          title="새 상담"
+          className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-[rgba(82,183,136,0.08)] active:scale-95 transition-all text-[#52B788]"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />
+            <line x1="12" y1="8" x2="12" y2="16" />
+            <line x1="8" y1="12" x2="16" y2="12" />
+          </svg>
+        </button>
       </header>
 
       {/* Full screen bounded drawer container */}
@@ -158,9 +181,21 @@ export function ChatHeader() {
               transition={{ type: 'spring', damping: 28, stiffness: 220 }}
               className="relative w-[82%] max-w-[320px] h-full bg-white flex flex-col shadow-[10px_0_30px_rgba(0,0,0,0.08)] pointer-events-auto overflow-hidden"
             >
-              {/* Sidebar Header (Logo) */}
-              <div className="px-5 pt-8 pb-6 bg-white">
+              {/* Sidebar Header */}
+              <div className="px-5 pt-8 pb-4 bg-white flex items-center justify-between">
                 <h1 className="text-[28px] font-black text-[#52B788] tracking-tighter cursor-pointer" onClick={() => { setIsOpen(false); router.push('/chat') }}>AIYA</h1>
+                {/* Refresh history button */}
+                <button
+                  onClick={() => loadHistory(true)}
+                  disabled={loading}
+                  title="새로고침"
+                  className="w-8 h-8 flex items-center justify-center text-[#94A3B8] hover:text-[#52B788] transition-colors disabled:opacity-40"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={loading ? 'animate-spin' : ''}>
+                    <path d="M21 12a9 9 0 1 1-6.22-8.56" />
+                    <polyline points="21 3 21 9 15 9" />
+                  </svg>
+                </button>
               </div>
 
               {/* Main Menu Links */}
@@ -188,26 +223,27 @@ export function ChatHeader() {
                       <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
                     </svg>
                   </div>
-                  <span className="text-[16px] font-semibold text-[#475569]">상담 목록</span>
+                  <span className="text-[16px] font-semibold text-[#475569]">전체 상담 목록</span>
                 </button>
               </div>
 
               <div className="border-t border-[rgba(82,183,136,0.12)] mx-5" />
 
               {/* Recents Section */}
-              <div className="flex-1 overflow-y-auto px-2 pt-6 pb-2">
+              <div className="flex-1 overflow-y-auto px-2 pt-4 pb-2">
                 <h2 className="px-4 text-[13px] font-bold text-[#52B788] mb-2 uppercase tracking-wider">최근 상담</h2>
-                <div className="space-y-0.5 mt-3">
+                <div className="space-y-0.5 mt-2">
                   {loading ? (
                     <div className="px-4 py-3 text-[14px] text-[#94A3B8] animate-pulse">로딩 중...</div>
-                  ) : history.length > 0 ? (
-                    history.map((chat) => (
+                  ) : chatSessions.length > 0 ? (
+                    chatSessions.map((chat) => (
                       <button
                         key={chat.id}
                         onClick={() => handleChatClick(chat.id)}
-                        className="w-full text-left py-3.5 px-4 rounded-xl hover:bg-[rgba(82,183,136,0.06)] active:scale-[0.98] transition-all truncate text-[14px] font-medium text-[#334155]"
+                        className="w-full text-left py-3 px-4 rounded-xl hover:bg-[rgba(82,183,136,0.06)] active:scale-[0.98] transition-all group"
                       >
-                        {chat.title}
+                        <div className="truncate text-[14px] font-medium text-[#334155] group-hover:text-[#52B788] transition-colors">{chat.title}</div>
+                        <div className="text-[11px] text-[#94A3B8] mt-0.5">{chat.childName} · {chat.date}</div>
                       </button>
                     ))
                   ) : (
@@ -241,4 +277,3 @@ export function ChatHeader() {
     </>
   )
 }
-

@@ -14,6 +14,7 @@ import {
   type ChildResponse,
 } from '@/lib/api';
 import toast from 'react-hot-toast';
+import { useAppStore } from '@/lib/store';
 
 type Child = {
   id: number;
@@ -71,6 +72,12 @@ export default function MyPage() {
 
   const handleLogout = () => {
     removeAccessToken();
+    useAppStore.persist.clearStorage(); // 기존 로컬스토리지 정리
+    useAppStore.getState().clearMessages();
+    useAppStore.getState().setChatSessions([]);
+    useAppStore.getState().setHistoryLoaded(false);
+    useAppStore.getState().setConsultationId(null);
+    useAppStore.getState().setChildren([]);
     router.push('/login');
   };
 

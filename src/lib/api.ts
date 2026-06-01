@@ -29,7 +29,7 @@ async function apiFetch<T>(
 
     const headers: Record<string, string> = {
         'Content-Type': 'application/json',
-...(options.headers as Record<string, string>),
+        ...(options.headers as Record<string, string>),
     }
 
     if (token) {
@@ -40,6 +40,7 @@ async function apiFetch<T>(
     const res = await fetch(`${API_BASE_URL}${endpoint}`, {
         ...options,
         headers,
+        cache: 'no-store',
     })
 
     if (res.status === 401) {
@@ -285,6 +286,69 @@ export async function sendChatMessage(chatId: number, content: string, imageUrl?
     return res.answer
 }
 
+export interface ChatStreamResponse {
+    transcript?: string;
+    text?: string;
+    audio?: string;
+    isFinal: boolean;
+}
+
+/** 음성 스트리밍 (SSE) */
+export async function sendVoiceMessageStream(
+    chatId: number,
+    blob: Blob,
+    onChunk: (data: ChatStreamResponse) => void
+): Promise<void> {
+    const token = getAccessToken();
+    const formData = new FormData();
+    formData.append('file', blob, 'voice.m4a'); // Use appropriate extension
+
+    const headers: Record<string, string> = {
+        'Accept': 'text/event-stream',
+    };
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/chats/${chatId}/voices`, {
+        method: 'POST',
+        headers,
+        body: formData,
+    });
+
+    if (!response.ok) {
+        throw new Error(`Voice Stream Error: ${response.statusText}`);
+    }
+
+    if (!response.body) throw new Error('No readable stream');
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        // Keep the last incomplete line in buffer
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+            if (line.startsWith('data:')) {
+                const dataStr = line.substring(5).trim();
+                if (!dataStr) continue;
+                try {
+                    const data = JSON.parse(dataStr) as ChatStreamResponse;
+                    onChunk(data);
+                } catch (e) {
+                    console.error('Failed to parse SSE data', dataStr, e);
+                }
+            }
+        }
+    }
+}
+
 /** 상담 방 목록 가져오기 */
 export async function getChatRooms(childId: number): Promise<number[]> {
     return apiFetch<number[]>(`/api/chats/child/${childId}`)
@@ -303,5 +367,12 @@ export async function updateChatAnalysis(chatId: number, category: string, riskL
             category,
             risk_level: riskLevel
         }),
+    })
+}
+
+/** 대화 종료하기 */
+export async function closeChat(chatId: number): Promise<void> {
+    return apiFetch<void>(`/api/chats/${chatId}/close`, {
+        method: 'POST',
     })
 }

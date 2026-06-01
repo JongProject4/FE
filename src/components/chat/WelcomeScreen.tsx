@@ -10,11 +10,12 @@ const SAMPLE_QUESTIONS = [
 
 interface Props {
   onSampleClick: (text: string) => void
+  childName?: string
 }
 
-export function WelcomeScreen({ onSampleClick }: Props) {
+export function WelcomeScreen({ onSampleClick, childName }: Props) {
   return (
-    <div className="flex flex-col items-center px-5 pt-10 pb-6 animate-fade-in">
+    <div className="flex flex-col items-center px-5 pt-8 pb-6 animate-fade-in">
       {/* Icon */}
       <div className="w-16 h-16 bg-[rgba(82,183,136,0.12)] rounded-[22px] flex items-center justify-center mb-5 overflow-hidden p-1 shadow-sm">
         <img
@@ -24,10 +25,25 @@ export function WelcomeScreen({ onSampleClick }: Props) {
         />
       </div>
 
-      <h2 className="text-[19px] font-bold text-[#334155] text-center mb-2">
-        안녕하세요?
+      <h2 className="text-[19px] font-bold text-[#334155] text-center mb-1">
+        {childName ? (
+          <>
+            <span className="text-[#52B788]">{childName}</span> 아이를 위한 AI 상담
+          </>
+        ) : (
+          '안녕하세요!'
+        )}
       </h2>
 
+      {childName ? (
+        <p className="text-[13px] text-[#94A3B8] text-center mb-6">
+          아이의 건강 정보를 기반으로 맞춤 답변을 드려요
+        </p>
+      ) : (
+        <p className="text-[13px] text-[#94A3B8] text-center mb-6">
+          아이 건강에 대해 무엇이든 물어보세요
+        </p>
+      )}
 
       {/* Sample questions */}
       <div className="w-full flex flex-col gap-2.5">
@@ -49,8 +65,6 @@ export function WelcomeScreen({ onSampleClick }: Props) {
           </button>
         ))}
       </div>
-
-
     </div>
   )
 }
