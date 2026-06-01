@@ -230,6 +230,7 @@ export function VoiceMode({ isOpen, onClose, onSend, onSendVoice, disabled }: Pr
                     const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 })
                     const arrayBuffer = await audioBlob.arrayBuffer()
                     const audioBuffer = await audioContext.decodeAudioData(arrayBuffer)
+                    audioContext.close() // Close context to prevent leaks
 
                     const wavBlob = audioBufferToWavBlob(audioBuffer)
                     console.log(`[VoiceMode] Converted to WAV, new size: ${wavBlob.size} bytes`)

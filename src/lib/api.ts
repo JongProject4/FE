@@ -3,7 +3,7 @@
 // 백엔드 API 클라이언트 - Spring Boot 서버와 통신
 
 // Backend API URL configuration
-const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL || 'https://aikids.duckdns.org').replace(/\/$/, '')
+const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL || 'https://aikids.duckdns.org').trim().replace(/\/$/, '')
 if (typeof window !== 'undefined') (window as any).API_BASE_URL = API_BASE_URL
 
 // ── JWT 토큰 관리 ──

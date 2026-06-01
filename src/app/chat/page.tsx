@@ -152,7 +152,7 @@ export default function ChatPage() {
 
     try {
       const { sendChatMessage } = await import('@/lib/api')
-      const responseText = await sendChatMessage(Number(currentRoomId), text)
+      const responseText = await sendChatMessage(Number(currentRoomId), text, uploadedImg || undefined)
 
       const chars = responseText.split('')
       let displayed = ''
