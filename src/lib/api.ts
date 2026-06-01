@@ -301,7 +301,16 @@ export async function sendVoiceMessageStream(
 ): Promise<void> {
     const token = getAccessToken();
     const formData = new FormData();
-    formData.append('file', blob, 'voice.m4a'); // Use appropriate extension
+
+    // Determine correct file extension from MIME
+    let ext = 'webm'
+    const mime = blob.type || ''
+    if (mime.includes('mp4') || mime.includes('m4a')) ext = 'm4a'
+    else if (mime.includes('ogg')) ext = 'ogg'
+    else if (mime.includes('wav')) ext = 'wav'
+    else if (mime.includes('webm')) ext = 'webm'
+
+    formData.append('file', blob, `voice.${ext}`);
 
     const headers: Record<string, string> = {
         'Accept': 'text/event-stream',
@@ -310,6 +319,8 @@ export async function sendVoiceMessageStream(
         headers['Authorization'] = `Bearer ${token}`;
     }
 
+    console.log(`[Voice API] Sending ${blob.size} bytes (${mime}) to /api/chats/${chatId}/voices`)
+
     const response = await fetch(`${API_BASE_URL}/api/chats/${chatId}/voices`, {
         method: 'POST',
         headers,
@@ -317,7 +328,9 @@ export async function sendVoiceMessageStream(
     });
 
     if (!response.ok) {
-        throw new Error(`Voice Stream Error: ${response.statusText}`);
+        const errorBody = await response.text().catch(() => '');
+        console.error('[Voice API] Error response:', response.status, errorBody);
+        throw new Error(`Voice Stream Error ${response.status}: ${errorBody || response.statusText}`);
     }
 
     if (!response.body) throw new Error('No readable stream');
@@ -335,15 +348,32 @@ export async function sendVoiceMessageStream(
         buffer = lines.pop() || '';
 
         for (const line of lines) {
-            if (line.startsWith('data:')) {
-                const dataStr = line.substring(5).trim();
+            const trimmed = line.trim()
+            // Skip empty lines and event type lines
+            if (!trimmed || trimmed.startsWith('event:') || trimmed.startsWith('id:') || trimmed.startsWith(':')) continue;
+
+            if (trimmed.startsWith('data:')) {
+                const dataStr = trimmed.substring(5).trim();
                 if (!dataStr) continue;
                 try {
                     const data = JSON.parse(dataStr) as ChatStreamResponse;
                     onChunk(data);
                 } catch (e) {
-                    console.error('Failed to parse SSE data', dataStr, e);
+                    console.warn('Failed to parse SSE data:', dataStr);
                 }
+            }
+        }
+    }
+
+    // Process any remaining buffer
+    if (buffer.trim().startsWith('data:')) {
+        const dataStr = buffer.trim().substring(5).trim();
+        if (dataStr) {
+            try {
+                const data = JSON.parse(dataStr) as ChatStreamResponse;
+                onChunk(data);
+            } catch (e) {
+                console.warn('Failed to parse final SSE data:', dataStr);
             }
         }
     }
