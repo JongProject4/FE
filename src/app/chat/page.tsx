@@ -21,6 +21,7 @@ export default function ChatPage() {
     setLoading, addChatSession,
   } = useAppStore()
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const [uploadedImg, setUploadedImg] = useState<string | null>(null)
   const [checking, setChecking] = useState(true)
 
   // Audio Context for streaming
@@ -168,7 +169,7 @@ export default function ChatPage() {
     } finally {
       setLoading(false)
     }
-  }, [isLoading, consultationId, uploadedImg, addMessage, setConsultationId, setLoading, updateLastMessage, addChatSession])
+  }, [isLoading, consultationId, uploadedImg, addMessage, setConsultationId, setLoading, updateLastMessage, addChatSession, setUploadedImg])
 
   // Core voice send logic
   const doSendVoiceMessage = useCallback(async (blob: Blob, chosenChild: ChildResponse) => {
@@ -296,7 +297,7 @@ export default function ChatPage() {
     } else {
       // If multiple children, we'd need a way to pass blob. Hack: save to state/ref.
       // For now, auto-select first child or prompt. To fully support:
-      toast.info('새 음성 채팅은 첫 번째 아이로 진행됩니다.')
+      toast('새 음성 채팅은 첫 번째 아이로 진행됩니다.')
       setActiveChild(allChildren[0])
       doSendVoiceMessage(blob, allChildren[0])
     }

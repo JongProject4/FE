@@ -13,13 +13,14 @@ interface Props {
 
 type VoiceState = 'idle' | 'listening' | 'processing'
 
-export function VoiceMode({ isOpen, onClose, onSend, disabled }: Props) {
+export function VoiceMode({ isOpen, onClose, onSend, onSendVoice, disabled }: Props) {
     const [voiceState, setVoiceState] = useState<VoiceState>('idle')
     const [transcript, setTranscript] = useState('')
     const [inputText, setInputText] = useState('')
     const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null)
     const mediaRecorderRef = useRef<MediaRecorder | null>(null)
     const audioChunksRef = useRef<Blob[]>([])
+    const fileInputRef = useRef<HTMLInputElement>(null)
 
     // Start listening automatically when opened
     useEffect(() => {
