@@ -43,7 +43,12 @@ export const useCalendarStore = create<CalendarStore>()(
         const key = dateKey(date)
         return get().events[key] || []
       },
-      setEvents: (events) => set({ events }),
+      setEvents: (eventsOrUpdater) =>
+        set((s) => ({
+          events: typeof eventsOrUpdater === 'function'
+            ? (eventsOrUpdater as any)(s.events)
+            : eventsOrUpdater,
+        })),
     }),
     { name: 'pediatric-calendar-events' }
   )
