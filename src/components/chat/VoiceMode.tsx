@@ -158,7 +158,10 @@ export function VoiceMode({ isOpen, onClose, onSend, onSendVoice, disabled }: Pr
         return chatIdRef.current
     }, [setConsultationId, addChatSession])
 
-    const playAudioChunk = useCallback(async (base64: string) => {
+    const audioQueueRef = useRef<string[]>([])
+    const isProcessingQueueRef = useRef(false)
+
+    const decodeAndScheduleAudio = useCallback(async (base64: string) => {
         if (!audioCtxRef.current) {
             audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)()
         }
@@ -204,6 +207,22 @@ export function VoiceMode({ isOpen, onClose, onSend, onSendVoice, disabled }: Pr
             console.warn('Audio chunk decode failed', e)
         }
     }, [])
+
+    const processAudioQueue = useCallback(async () => {
+        if (isProcessingQueueRef.current || audioQueueRef.current.length === 0) return
+
+        isProcessingQueueRef.current = true
+        while (audioQueueRef.current.length > 0) {
+            const base64 = audioQueueRef.current.shift()!
+            await decodeAndScheduleAudio(base64)
+        }
+        isProcessingQueueRef.current = false
+    }, [decodeAndScheduleAudio])
+
+    const playAudioChunk = useCallback((base64: string) => {
+        audioQueueRef.current.push(base64)
+        processAudioQueue()
+    }, [processAudioQueue])
 
     const stopAllAudio = useCallback(() => {
         sourceNodesRef.current.forEach(s => { try { s.stop() } catch { } })
