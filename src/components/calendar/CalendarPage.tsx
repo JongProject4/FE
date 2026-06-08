@@ -85,7 +85,7 @@ export function CalendarPage({ initialChildren }: Props) {
             if (!newEvents[key]) newEvents[key] = []
             newEvents[key].push(event)
           })
-          setEvents(newEvents)
+          setEvents((prevEvents) => ({ ...prevEvents, ...newEvents }))
         }
       } catch (err) {
         console.error('Failed to load calendar data', err)
@@ -151,8 +151,8 @@ export function CalendarPage({ initialChildren }: Props) {
               <button
                 onClick={() => setCalendarMode('monthly')}
                 className={`px-3 py-[5px] rounded-full text-[12px] font-semibold transition-all duration-200 ${calendarMode === 'monthly'
-                    ? 'bg-[#52B788] text-white shadow-sm'
-                    : 'text-[#64748B] hover:text-[#52B788]'
+                  ? 'bg-[#52B788] text-white shadow-sm'
+                  : 'text-[#64748B] hover:text-[#52B788]'
                   }`}
               >
                 월간
@@ -160,8 +160,8 @@ export function CalendarPage({ initialChildren }: Props) {
               <button
                 onClick={() => { setCalendarMode('weekly'); setWeekOffset(0) }}
                 className={`px-3 py-[5px] rounded-full text-[12px] font-semibold transition-all duration-200 ${calendarMode === 'weekly'
-                    ? 'bg-[#52B788] text-white shadow-sm'
-                    : 'text-[#64748B] hover:text-[#52B788]'
+                  ? 'bg-[#52B788] text-white shadow-sm'
+                  : 'text-[#64748B] hover:text-[#52B788]'
                   }`}
               >
                 주간

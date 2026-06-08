@@ -196,7 +196,23 @@ export function VoiceMode({ isOpen, onClose, onSend, onSendVoice, disabled }: Pr
             nextAudioTimeRef.current = startTime + buffer.duration
             sourceNodesRef.current.push(source)
         } catch (e) {
-            console.warn('Audio chunk decode failed', e)
+            console.warn('AudioContext playback failed, trying HTMLAudio fallback', e)
+            try {
+                const blob = new Blob([new Uint8Array(atob(base64).split('').map(c => c.charCodeAt(0)))], { type: 'audio/wav' })
+                const url = URL.createObjectURL(blob)
+                const audio = new Audio(url)
+                audio.play()
+                audio.onended = () => {
+                    URL.revokeObjectURL(url)
+                    // Simplified logic for fallback: if no nodes left, go idle
+                    if (sourceNodesRef.current.length === 0 && isFinalReceivedRef.current) {
+                        setVoiceState(prev => (prev === 'speaking' ? 'idle' : prev))
+                        setStatusText('마이크를 눌러 다시 말씀하세요')
+                    }
+                }
+            } catch (fallbackErr) {
+                console.error('All audio methods failed', fallbackErr)
+            }
         }
     }, [])
 
