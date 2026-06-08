@@ -391,7 +391,7 @@ export async function sendVoiceMessageStream(
 
 /** 상담 방 목록 가져오기 */
 export async function getChatRooms(childId: number): Promise<number[]> {
-    return apiFetch<number[]>(`/api/chats/child/${childId}`)
+    return apiFetch<number[]>(`/api/chats/rooms/list/${childId}`)
 }
 
 /** 대화 내역 가져오기 */

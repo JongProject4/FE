@@ -66,6 +66,34 @@ function audioBufferToWavBlob(buffer: AudioBuffer): Blob {
     return new Blob([wavBuffer], { type: 'audio/wav' });
 }
 
+// Gemini TTS returns raw PCM (LINEAR16, 24kHz, mono) without WAV headers.
+// AudioContext.decodeAudioData() needs a container format, so we wrap it.
+function pcmToWav(pcmData: Uint8Array, numChannels = 1, sampleRate = 24000): ArrayBuffer {
+    const bitDepth = 16
+    const bytesPerSample = bitDepth / 8
+    const blockAlign = numChannels * bytesPerSample
+    const wavBuffer = new ArrayBuffer(44 + pcmData.length)
+    const view = new DataView(wavBuffer)
+    const ws = (offset: number, str: string) => {
+        for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i))
+    }
+    ws(0, 'RIFF')
+    view.setUint32(4, 36 + pcmData.length, true)
+    ws(8, 'WAVE')
+    ws(12, 'fmt ')
+    view.setUint32(16, 16, true)
+    view.setUint16(20, 1, true)
+    view.setUint16(22, numChannels, true)
+    view.setUint32(24, sampleRate, true)
+    view.setUint32(28, sampleRate * blockAlign, true)
+    view.setUint16(32, blockAlign, true)
+    view.setUint16(34, bitDepth, true)
+    ws(36, 'data')
+    view.setUint32(40, pcmData.length, true)
+    new Uint8Array(wavBuffer).set(pcmData, 44)
+    return wavBuffer
+}
+
 type VoiceState = 'idle' | 'listening' | 'processing' | 'speaking'
 
 export function VoiceMode({ isOpen, onClose, onSend, onSendVoice, disabled }: Props) {
@@ -142,7 +170,14 @@ export function VoiceMode({ isOpen, onClose, onSend, onSendVoice, disabled }: Pr
             const bytes = new Uint8Array(binary.length)
             for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
 
-            const buffer = await ctx.decodeAudioData(bytes.buffer.slice(0))
+            let buffer: AudioBuffer
+            try {
+                // Try decoding as a formatted audio file (MP3, OGG, WAV with header)
+                buffer = await ctx.decodeAudioData(bytes.buffer.slice(0))
+            } catch {
+                // Gemini TTS returns raw PCM (LINEAR16, 24kHz, mono) — add WAV header
+                buffer = await ctx.decodeAudioData(pcmToWav(bytes, 1, 24000))
+            }
             const source = ctx.createBufferSource()
             source.buffer = buffer
             source.connect(ctx.destination)
