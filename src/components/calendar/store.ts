@@ -9,7 +9,7 @@ interface CalendarStore {
   addEvent: (event: CalendarEvent) => void
   removeEvent: (date: Date, eventId: string) => void
   getEventsForDate: (date: Date) => CalendarEvent[]
-  setEvents: (events: DayEvents) => void
+  setEvents: (events: DayEvents | ((prev: DayEvents) => DayEvents)) => void
 }
 
 export const useCalendarStore = create<CalendarStore>()(

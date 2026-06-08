@@ -217,15 +217,14 @@ export function VoiceMode({ isOpen, onClose, onSend, onSendVoice, disabled }: Pr
     }, [])
 
     const processAudioQueue = useCallback(async () => {
-        if (isProcessingQueueRef.current || audioQueueRef.current.length === 0) return
+        if (isProcessingQueueRef.current) return
         isProcessingQueueRef.current = true
         while (audioQueueRef.current.length > 0) {
             const next = audioQueueRef.current.shift()
             if (next) await decodeAndScheduleAudio(next)
-            if (voiceState !== 'speaking' && voiceState !== 'processing') break
         }
         isProcessingQueueRef.current = false
-    }, [decodeAndScheduleAudio, voiceState])
+    }, [decodeAndScheduleAudio])
 
     const playAudioChunk = useCallback((base64: string) => {
         audioQueueRef.current.push(base64)
