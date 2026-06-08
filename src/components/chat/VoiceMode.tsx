@@ -158,6 +158,7 @@ export function VoiceMode({ isOpen, onClose, onSend, onSendVoice, disabled }: Pr
         return chatIdRef.current
     }, [setConsultationId, addChatSession])
 
+    const isFinalReceivedRef = useRef(false)
     const audioQueueRef = useRef<string[]>([])
     const isProcessingQueueRef = useRef(false)
 
@@ -175,34 +176,25 @@ export function VoiceMode({ isOpen, onClose, onSend, onSendVoice, disabled }: Pr
 
             let buffer: AudioBuffer
             try {
-                // Try decoding as a formatted audio file (MP3, OGG, WAV with header)
                 buffer = await ctx.decodeAudioData(bytes.buffer.slice(0))
             } catch {
-                // Gemini TTS returns raw PCM (LINEAR16, 24kHz, mono) — add WAV header
                 buffer = await ctx.decodeAudioData(pcmToWav(bytes, 1, 24000))
             }
             const source = ctx.createBufferSource()
-            source.buffer = buffer
-            source.connect(ctx.destination)
-
-            if (nextAudioTimeRef.current < ctx.currentTime) {
-                nextAudioTimeRef.current = ctx.currentTime
-            }
-            source.start(nextAudioTimeRef.current)
-            nextAudioTimeRef.current += buffer.duration
-            sourceNodesRef.current.push(source)
-
-            // When last audio finishes, allow user to speak again
             source.onended = () => {
                 sourceNodesRef.current = sourceNodesRef.current.filter(s => s !== source)
-                if (sourceNodesRef.current.length === 0) {
-                    setVoiceState(prev => {
-                        if (prev === 'speaking') return 'idle'
-                        return prev
-                    })
+                if (sourceNodesRef.current.length === 0 && isFinalReceivedRef.current) {
+                    setVoiceState(prev => (prev === 'speaking' ? 'idle' : prev))
                     setStatusText('마이크를 눌러 다시 말씀하세요')
                 }
             }
+            source.buffer = buffer
+            source.connect(ctx.destination)
+
+            const startTime = Math.max(nextAudioTimeRef.current, ctx.currentTime)
+            source.start(startTime)
+            nextAudioTimeRef.current = startTime + buffer.duration
+            sourceNodesRef.current.push(source)
         } catch (e) {
             console.warn('Audio chunk decode failed', e)
         }
@@ -210,14 +202,14 @@ export function VoiceMode({ isOpen, onClose, onSend, onSendVoice, disabled }: Pr
 
     const processAudioQueue = useCallback(async () => {
         if (isProcessingQueueRef.current || audioQueueRef.current.length === 0) return
-
         isProcessingQueueRef.current = true
         while (audioQueueRef.current.length > 0) {
-            const base64 = audioQueueRef.current.shift()!
-            await decodeAndScheduleAudio(base64)
+            const next = audioQueueRef.current.shift()
+            if (next) await decodeAndScheduleAudio(next)
+            if (voiceState !== 'speaking' && voiceState !== 'processing') break
         }
         isProcessingQueueRef.current = false
-    }, [decodeAndScheduleAudio])
+    }, [decodeAndScheduleAudio, voiceState])
 
     const playAudioChunk = useCallback((base64: string) => {
         audioQueueRef.current.push(base64)
@@ -225,7 +217,15 @@ export function VoiceMode({ isOpen, onClose, onSend, onSendVoice, disabled }: Pr
     }, [processAudioQueue])
 
     const stopAllAudio = useCallback(() => {
-        sourceNodesRef.current.forEach(s => { try { s.stop() } catch { } })
+        isProcessingQueueRef.current = false
+        audioQueueRef.current = []
+        isFinalReceivedRef.current = false
+        sourceNodesRef.current.forEach(s => {
+            try {
+                s.onended = null
+                s.stop()
+            } catch { }
+        })
         sourceNodesRef.current = []
         nextAudioTimeRef.current = 0
     }, [])
@@ -374,6 +374,7 @@ export function VoiceMode({ isOpen, onClose, onSend, onSendVoice, disabled }: Pr
                 }
 
                 if (chunk.isFinal) {
+                    isFinalReceivedRef.current = true
                     updateLastMessage(fullText || '(음성 응답)', true)
                 }
             })
