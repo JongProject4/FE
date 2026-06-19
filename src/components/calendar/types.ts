@@ -11,6 +11,7 @@ export interface ClinicRecord {
   diagnosis: string
   hasNextVisit: boolean
   nextVisitDate?: string      // ISO date string
+  visitDate?: string          // ISO datetime: AI 등록 내원 알람의 방문 일시 (수기 입력엔 없음)
   medications: MedEntry[]
   date: string                // YYYY-MM-DD
   createdAt: string

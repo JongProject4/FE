@@ -104,6 +104,8 @@ export function CalendarPage({ initialChildren }: Props) {
               hospital: log.logType === 'HOSPITAL' ? log.content : '상담 기록',
               diagnosis: log.logType === 'CONSULTATION' ? log.content : '',
               hasNextVisit: false,
+              // AI 내원 알람의 방문 일시. CONSULTATION 등 다른 로그타입은 비워둠.
+              visitDate: log.logType === 'HOSPITAL' ? log.eventDate : undefined,
               medications: [],
               date: key,
               createdAt: log.eventDate

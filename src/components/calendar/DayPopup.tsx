@@ -1,7 +1,7 @@
 'use client'
 // src/components/calendar/DayPopup.tsx
 import { CalendarEvent, ClinicRecord, MedRecord } from './types'
-import { formatDateLabel } from './utils'
+import { formatDateLabel, formatVisitDateTime } from './utils'
 
 interface Props {
   date: Date
@@ -21,7 +21,14 @@ function ClinicItem({ event }: { event: ClinicRecord }) {
           <span className="text-[14px] font-medium text-[#334155] truncate">{event.hospital}</span>
           <span className="px-2 py-0.5 bg-[rgba(82,183,136,0.12)] text-[#52B788] text-[10px] font-semibold rounded-full flex-shrink-0">내원</span>
         </div>
-        <div className="text-[12px] text-[#475569]">{event.diagnosis}</div>
+        {event.visitDate && (
+          <div className="text-[12px] text-[#475569]">
+            방문 일시: {formatVisitDateTime(event.visitDate)}
+          </div>
+        )}
+        {event.diagnosis && (
+          <div className="text-[12px] text-[#475569]">{event.diagnosis}</div>
+        )}
         {event.hasNextVisit && event.nextVisitDate && (
           <div className="text-[11px] text-[#94A3B8] mt-0.5">
             다음 내원: {event.nextVisitDate}

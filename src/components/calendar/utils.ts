@@ -49,3 +49,10 @@ export function generateId(): string {
 export function formatTime(h: number, m: number): string {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
 }
+
+// ISO LocalDateTime → "6월 20일 10:00" 형식. 브라우저 로컬 TZ 기반 (KST 환경 일관).
+export function formatVisitDateTime(iso: string): string {
+  const d = new Date(iso)
+  const pad = (n: number) => n.toString().padStart(2, '0')
+  return `${d.getMonth() + 1}월 ${d.getDate()}일 ${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
