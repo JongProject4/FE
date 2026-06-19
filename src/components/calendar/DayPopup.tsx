@@ -16,10 +16,19 @@ interface Props {
 }
 
 
+function consultationTypeLabel(isVoice?: boolean): string {
+  return isVoice ? '음성 상담' : '텍스트 상담'
+}
+
+function consultationDisplayTitle(title: string): string {
+  return title.replace(/^🎙\s*/, '').trim()
+}
+
 function ConsultationItem({ event }: { event: ConsultationRecord }) {
   const router = useRouter()
   const { setConsultationId, setMessages } = useAppStore()
   const childColor = getChildColor(event.childId || event.childName)
+  const typeLabel = consultationTypeLabel(event.isVoice)
 
   const openChat = () => {
     setConsultationId(String(event.chatId))
@@ -36,10 +45,18 @@ function ConsultationItem({ event }: { event: ConsultationRecord }) {
       <div className="w-2 h-2 rounded-full mt-2 flex-shrink-0" style={{ backgroundColor: childColor.dot }} />
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-1">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={childColor.dot} strokeWidth="2" className="shrink-0">
-            <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />
-          </svg>
-          <span className="text-[14px] font-semibold text-[#334155] truncate">AI 상담</span>
+          {event.isVoice ? (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={childColor.dot} strokeWidth="2" className="shrink-0">
+              <rect x="9" y="2" width="6" height="12" rx="3" />
+              <path d="M5 10c0 4 3 7 7 7s7-3 7-7" />
+              <line x1="12" y1="17" x2="12" y2="21" />
+            </svg>
+          ) : (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={childColor.dot} strokeWidth="2" className="shrink-0">
+              <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />
+            </svg>
+          )}
+          <span className="text-[14px] font-semibold text-[#334155] truncate">{typeLabel}</span>
           <span
             className="px-2 py-0.5 text-[10px] font-semibold rounded-full flex-shrink-0"
             style={{ backgroundColor: childColor.bg, color: childColor.text }}
@@ -55,7 +72,7 @@ function ConsultationItem({ event }: { event: ConsultationRecord }) {
             {getRiskLabel(event.riskLevel)}
           </span>
         </div>
-        <div className="text-[12px] text-[#94A3B8] truncate">{event.title}</div>
+        <div className="text-[12px] text-[#94A3B8] truncate">{consultationDisplayTitle(event.title)}</div>
       </div>
     </button>
   )

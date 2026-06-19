@@ -3,8 +3,13 @@
 // Gemini-like Voice Chat Mode — full duplex voice conversation
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { sendVoiceMessageStream, ChatStreamResponse, getAccessToken, createChat, ChildResponse } from '@/lib/api'
+import { sendVoiceMessageStream, ChatStreamResponse, createChat, ChildResponse } from '@/lib/api'
 import { getChildColor } from '@/lib/childColors'
+import {
+    buildChatTitleFromHistory,
+    fetchChatHistory,
+    historyToMessages,
+} from '@/lib/chatHistory'
 import { useAppStore } from '@/lib/store'
 import toast from 'react-hot-toast'
 
@@ -114,7 +119,7 @@ export function VoiceMode({ isOpen, onClose, activeChild, onSendVoice, disabled 
     const chatIdRef = useRef<string | null>(null)
     const childRef = useRef<ChildResponse | null>(null)
 
-    const { consultationId, setConsultationId, addMessage, addChatSession, updateLastMessage } = useAppStore()
+    const { consultationId, setConsultationId, addMessage, addChatSession, updateChatSession, updateLastMessage, setMessages } = useAppStore()
 
     // Initialize on open
     useEffect(() => {
@@ -150,9 +155,25 @@ export function VoiceMode({ isOpen, onClose, activeChild, onSendVoice, disabled 
             date: new Date().toLocaleDateString('ko-KR'),
             childId: String(child.id),
             childName: child.name,
+            isVoice: true,
         })
         return chatIdRef.current
     }, [setConsultationId, addChatSession])
+
+    const syncHistoryFromBackend = useCallback(async (roomId: string) => {
+        try {
+            const history = await fetchChatHistory(Number(roomId))
+            setMessages(historyToMessages(history))
+            const title = buildChatTitleFromHistory(history, 30)
+            if (title) {
+                updateChatSession(Number(roomId), { title, isVoice: true })
+            }
+            return history
+        } catch (e) {
+            console.error('Failed to sync voice chat history', e)
+            return null
+        }
+    }, [setMessages, updateChatSession])
 
     const isFinalReceivedRef = useRef(false)
     const audioQueueRef = useRef<string[]>([])
@@ -342,7 +363,7 @@ export function VoiceMode({ isOpen, onClose, activeChild, onSendVoice, disabled 
             addMessage({
                 id: userMsgId,
                 role: 'user',
-                content: '🎙 음성 메시지',
+                content: '음성 인식 중...',
                 timestamp: new Date().toISOString(),
             })
 
@@ -356,11 +377,9 @@ export function VoiceMode({ isOpen, onClose, activeChild, onSendVoice, disabled 
             })
 
             await sendVoiceMessageStream(Number(roomId), blob, (chunk: ChatStreamResponse) => {
-                // When we get the transcript (what user said)
-                if (chunk.transcript && !gotTranscript) {
+                if (chunk.transcript) {
                     setTranscript(chunk.transcript)
-                    gotTranscript = true
-                    // Update user message with actual transcript
+                    if (!gotTranscript) gotTranscript = true
                     useAppStore.setState(s => {
                         const msgs = [...s.messages]
                         const uIdx = msgs.findIndex(m => m.id === userMsgId)
@@ -390,6 +409,7 @@ export function VoiceMode({ isOpen, onClose, activeChild, onSendVoice, disabled 
                 }
             })
 
+            await syncHistoryFromBackend(roomId)
         } catch (err: any) {
             console.error('[VoiceMode Backend Error]', err)
             setStatusText('오류가 발생했습니다. 다시 시도하세요.')
@@ -397,7 +417,7 @@ export function VoiceMode({ isOpen, onClose, activeChild, onSendVoice, disabled 
             updateLastMessage('죄송합니다. 음성 처리 중 오류가 발생했습니다.', true)
             toast.error(err.message || '음성 처리 실패')
         }
-    }, [getOrCreateChatRoom, addMessage, updateLastMessage, playAudioChunk])
+    }, [getOrCreateChatRoom, addMessage, updateLastMessage, playAudioChunk, syncHistoryFromBackend])
 
     const handleMicButton = () => {
         if (voiceState === 'listening') {
@@ -414,9 +434,13 @@ export function VoiceMode({ isOpen, onClose, activeChild, onSendVoice, disabled 
         // If 'processing', ignore taps
     }
 
-    const handleClose = () => {
+    const handleClose = async () => {
         stopListening()
         stopAllAudio()
+        const roomId = chatIdRef.current || consultationId
+        if (roomId) {
+            await syncHistoryFromBackend(roomId)
+        }
         setTranscript('')
         setAiText('')
         onClose()

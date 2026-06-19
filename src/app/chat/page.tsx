@@ -14,6 +14,11 @@ import { VoiceMode } from '@/components/chat/VoiceMode'
 import { BottomNav } from '@/components/layout/BottomNav'
 import { saveChatMeta } from '@/lib/chatMetaStorage'
 import { getChildColor } from '@/lib/childColors'
+import {
+  buildChatTitleFromHistory,
+  fetchChatHistory,
+  historyToMessages,
+} from '@/lib/chatHistory'
 import toast from 'react-hot-toast'
 
 export default function ChatPage() {
@@ -21,7 +26,7 @@ export default function ChatPage() {
   const {
     messages, consultationId,
     isLoading, addMessage, updateLastMessage, setConsultationId,
-    setLoading, addChatSession, setMessages, setHistoryLoaded,
+    setLoading, addChatSession, updateChatSession, setMessages, setHistoryLoaded,
   } = useAppStore()
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const [uploadedImg, setUploadedImg] = useState<string | null>(null)
@@ -98,17 +103,9 @@ export default function ChatPage() {
     if (consultationId && messages.length === 0) {
       const loadHistory = async () => {
         try {
-          const { getChatHistory } = await import('@/lib/api')
-          const history = await getChatHistory(Number(consultationId))
+          const history = await fetchChatHistory(Number(consultationId))
           const { setMessages } = useAppStore.getState()
-
-          const formatted = history.map((h, idx) => ({
-            id: `hist-${idx}`,
-            role: (h.role.toLowerCase() === 'user' ? 'user' : 'assistant') as 'user' | 'assistant',
-            content: h.content,
-            timestamp: h.time
-          }))
-          setMessages(formatted)
+          setMessages(historyToMessages(history))
         } catch (err) {
           console.error('Failed to load history', err)
         }
@@ -198,6 +195,7 @@ export default function ChatPage() {
           date: new Date().toLocaleDateString('ko-KR'),
           childId: String(chosenChild.id),
           childName: chosenChild.name,
+          isVoice: true,
         })
       } catch (err) {
         toast.error('상담방 생성에 실패했습니다.')
@@ -227,20 +225,17 @@ export default function ChatPage() {
     nextAudioTimeRef.current = 0
 
     try {
-      let isFirstChunk = true
       let fullAssistantText = ''
 
       const { sendVoiceMessageStream } = await import('@/lib/api')
       await sendVoiceMessageStream(Number(currentRoomId), blob, (chunk) => {
-        if (chunk.transcript && isFirstChunk) {
-          // Update user message with transcript
+        if (chunk.transcript) {
           useAppStore.setState(s => {
             const msgs = [...s.messages]
             const uIdx = msgs.findIndex(m => m.id === userMsgId)
             if (uIdx !== -1) msgs[uIdx] = { ...msgs[uIdx], content: chunk.transcript! }
             return { messages: msgs }
           })
-          isFirstChunk = false
         }
         if (chunk.text) {
           fullAssistantText += chunk.text
@@ -253,6 +248,13 @@ export default function ChatPage() {
           updateLastMessage(fullAssistantText, true)
         }
       })
+
+      const history = await fetchChatHistory(Number(currentRoomId))
+      setMessages(historyToMessages(history))
+      const title = buildChatTitleFromHistory(history, 30)
+      if (title) {
+        updateChatSession(Number(currentRoomId), { title, isVoice: true })
+      }
     } catch (err: any) {
       console.error('[Voice Chat Error]', err)
       updateLastMessage('죄송합니다. 음성 처리 중 오류가 발생했습니다.', true)
@@ -260,7 +262,7 @@ export default function ChatPage() {
     } finally {
       setLoading(false)
     }
-  }, [isLoading, consultationId, addMessage, setConsultationId, setLoading, updateLastMessage, addChatSession, playAudioChunk])
+  }, [isLoading, consultationId, addMessage, setConsultationId, setLoading, updateLastMessage, addChatSession, updateChatSession, setMessages, playAudioChunk])
 
   const resolveChildForSession = useCallback((): ChildResponse | null => {
     if (activeChild) return activeChild
@@ -436,12 +438,9 @@ export default function ChatPage() {
                     console.warn('Chat analysis failed after close:', analyzeErr)
                   }
 
-                  const firstUserMsg = messages.find((m) => m.role === 'user')
-                  const title = firstUserMsg?.content?.trim()
-                    ? (firstUserMsg.content.length > 30
-                      ? `${firstUserMsg.content.slice(0, 30)}...`
-                      : firstUserMsg.content)
-                    : `상담 #${chatId}`
+                  const history = await fetchChatHistory(chatId)
+                  const title = buildChatTitleFromHistory(history, 30) || `상담 #${chatId}`
+                  const isVoice = useAppStore.getState().chatSessions.find((c) => c.id === chatId)?.isVoice ?? false
 
                   saveChatMeta(chatId, {
                     category,
@@ -449,7 +448,10 @@ export default function ChatPage() {
                     title,
                     childName: activeChild?.name,
                     date: new Date().toLocaleDateString('ko-KR'),
+                    isVoice,
                   })
+
+                  updateChatSession(chatId, { title, category, riskLevel, isVoice })
 
                   setConsultationId(null)
                   setMessages([])
@@ -526,7 +528,6 @@ export default function ChatPage() {
         isOpen={voiceModeOpen}
         onClose={() => setVoiceModeOpen(false)}
         activeChild={activeChild}
-        onSendVoice={sendVoiceMessage}
         disabled={isLoading}
       />
     </main>

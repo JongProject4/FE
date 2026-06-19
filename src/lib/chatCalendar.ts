@@ -38,6 +38,7 @@ export async function fetchConsultationCalendarEvents(): Promise<DayEvents> {
             chatId: session.id,
             date: key,
             createdAt: session.date,
+            isVoice: session.isVoice,
         }
 
         if (!events[key]) events[key] = []

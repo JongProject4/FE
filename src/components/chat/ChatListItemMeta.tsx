@@ -2,6 +2,7 @@
 
 import { getCategoryLabel, getRiskBadgeClass, getRiskLabel } from '@/lib/chatLabels'
 import { getChildColor } from '@/lib/childColors'
+import { formatVoiceChatTitle } from '@/lib/chatHistory'
 import type { ChatSession } from '@/lib/store'
 
 interface Props {
@@ -11,11 +12,12 @@ interface Props {
 
 export function ChatListItemMeta({ chat, titleClassName = '' }: Props) {
     const childColor = getChildColor(chat.childId || chat.childName)
+    const displayTitle = chat.isVoice ? formatVoiceChatTitle(chat.title) : chat.title
 
     return (
         <>
             <div className={`truncate text-[#334155] group-hover:text-[#52B788] transition-colors ${titleClassName}`}>
-                {chat.title}
+                {displayTitle}
             </div>
             <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                 <span

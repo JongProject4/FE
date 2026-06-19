@@ -13,6 +13,7 @@ export interface ConsultationRecord {
   chatId: number
   date: string
   createdAt: string
+  isVoice?: boolean
 }
 
 export interface ClinicRecord {

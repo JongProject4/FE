@@ -1,7 +1,7 @@
 'use client'
 // src/components/calendar/WeeklyView.tsx
 import { useMemo } from 'react'
-import type { CalendarEvent, ClinicRecord } from './types'
+import type { CalendarEvent, ClinicRecord, ConsultationRecord } from './types'
 import { EventDots } from './EventDots'
 import { dateKey, isToday, formatVisitTimeLabel } from './utils'
 import { getChildColor } from '@/lib/childColors'
@@ -135,6 +135,13 @@ export function WeeklyView({ events, onDayClick, onPrevWeek, onNextWeek, weekOff
                     <div className="flex flex-col gap-2">
                         {weekSchedule.map(({ date, ev }, idx) => {
                             const clinic = ev.type === 'clinic' ? (ev as ClinicRecord) : null
+                            const consultation = ev.type === 'consultation' ? (ev as ConsultationRecord) : null
+                            const typeLabel = consultation
+                                ? (consultation.isVoice ? '음성 상담' : '텍스트 상담')
+                                : '내원'
+                            const consultationTitle = consultation
+                                ? consultation.title.replace(/^🎙\s*/, '').trim()
+                                : ''
                             return (
                                 <div
                                     key={idx}
@@ -155,11 +162,11 @@ export function WeeklyView({ events, onDayClick, onPrevWeek, onNextWeek, weekOff
                                     </div>
                                     <div className="flex-1 min-w-0">
                                         <p className="text-[12px] font-semibold text-[#334155] truncate">
-                                            {ev.type === 'consultation' ? 'AI 상담' : clinic?.hospitalName}
+                                            {consultation ? typeLabel : clinic?.hospitalName}
                                         </p>
                                         <p className="text-[11px] text-[#64748B] truncate">
-                                            {ev.type === 'consultation'
-                                                ? `💬 ${ev.childName}`
+                                            {consultation
+                                                ? `${consultation.isVoice ? '🎙' : '💬'} ${consultationTitle || consultation.childName}`
                                                 : `🏥 ${formatVisitTime(clinic?.visitDate || '')} · ${ev.childName}`}
                                         </p>
                                     </div>
@@ -171,7 +178,7 @@ export function WeeklyView({ events, onDayClick, onPrevWeek, onNextWeek, weekOff
                                             ? { backgroundColor: getChildColor(ev.childId || ev.childName).dot }
                                             : undefined}
                                     >
-                                        {ev.type === 'consultation' ? '상담' : '내원'}
+                                        {consultation ? (consultation.isVoice ? '음성' : '텍스트') : '내원'}
                                     </span>
                                 </div>
                             )

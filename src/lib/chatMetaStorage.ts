@@ -6,6 +6,7 @@ export interface StoredChatMeta {
     title?: string
     childName?: string
     date?: string
+    isVoice?: boolean
 }
 
 type ChatMetaMap = Record<string, StoredChatMeta>

@@ -31,6 +31,7 @@ export interface ChatSession {
   category?: string
   riskLevel?: string
   eventDateKey?: string
+  isVoice?: boolean
 }
 
 interface AppStore {
@@ -52,6 +53,7 @@ interface AppStore {
   setLoading: (v: boolean) => void
   setChatSessions: (sessions: ChatSession[]) => void
   addChatSession: (session: ChatSession) => void
+  updateChatSession: (id: number, patch: Partial<ChatSession>) => void
   setHistoryLoaded: (v: boolean) => void
 }
 
@@ -91,10 +93,13 @@ export const useAppStore = create<AppStore>()(
       setChatSessions: (sessions) => set({ chatSessions: sessions }),
       addChatSession: (session) =>
         set((s) => {
-          // Add new session to the top, avoid duplicates
           const filtered = s.chatSessions.filter((c) => c.id !== session.id)
           return { chatSessions: [session, ...filtered] }
         }),
+      updateChatSession: (id, patch) =>
+        set((s) => ({
+          chatSessions: s.chatSessions.map((c) => (c.id === id ? { ...c, ...patch } : c)),
+        })),
       setHistoryLoaded: (v) => set({ historyLoaded: v }),
     }),
     {

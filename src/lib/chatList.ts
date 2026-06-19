@@ -1,5 +1,6 @@
 import { getChildren, getChatRooms, getChatHistory } from '@/lib/api'
 import { getChatMeta } from '@/lib/chatMetaStorage'
+import { buildChatTitleFromHistory, isVoicePlaceholder } from '@/lib/chatHistory'
 import type { ChatSession } from '@/lib/store'
 
 function toEventDateKey(time?: string): string | null {
@@ -7,12 +8,6 @@ function toEventDateKey(time?: string): string | null {
     const date = new Date(time)
     if (Number.isNaN(date.getTime())) return null
     return `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`
-}
-
-function truncate(text: string, maxLength: number): string {
-    const normalized = text.trim()
-    if (normalized.length <= maxLength) return normalized
-    return `${normalized.slice(0, maxLength)}...`
 }
 
 function formatDate(time?: string): string {
@@ -46,13 +41,18 @@ export async function fetchChatSessions(titleMaxLength = 30): Promise<ChatSessio
             let title = stored?.title ?? `${child.name}의 상담 #${id}`
             let date = stored?.date ?? new Date().toLocaleDateString('ko-KR')
             let eventDateKey: string | undefined
+            let isVoice = stored?.isVoice ?? isVoicePlaceholder(stored?.title) ?? false
 
             try {
                 const messages = await getChatHistory(id)
-                const firstUserMsg = messages.find((m) => m.role === 'USER')
-                if (!stored?.title && firstUserMsg?.content?.trim()) {
-                    title = truncate(firstUserMsg.content, titleMaxLength)
+                const apiTitle = buildChatTitleFromHistory(messages, titleMaxLength)
+                if (apiTitle) {
+                    title = apiTitle
+                } else if (isVoicePlaceholder(stored?.title)) {
+                    title = `${child.name}의 상담 #${id}`
                 }
+
+                const firstUserMsg = messages.find((m) => m.role === 'USER')
                 if (firstUserMsg?.time) {
                     date = formatDate(firstUserMsg.time)
                     eventDateKey = toEventDateKey(firstUserMsg.time) ?? undefined
@@ -74,6 +74,7 @@ export async function fetchChatSessions(titleMaxLength = 30): Promise<ChatSessio
                 category: stored?.category ?? 'ANALYZING',
                 riskLevel: stored?.riskLevel ?? 'ANALYZING',
                 eventDateKey,
+                isVoice,
             })
         }
     }
