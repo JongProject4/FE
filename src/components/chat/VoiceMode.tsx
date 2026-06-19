@@ -121,24 +121,29 @@ export function VoiceMode({ isOpen, onClose, activeChild, onSendVoice, disabled 
 
     const { consultationId, setConsultationId, addMessage, addChatSession, updateChatSession, updateLastMessage, setMessages } = useAppStore()
 
-    // Initialize on open
+    // consultationId 변경 시 ref만 동기화 (UI 초기화·재녹음 트리거 금지)
     useEffect(() => {
-        if (isOpen && activeChild) {
-            childRef.current = activeChild
-            setTranscript('')
-            setAiText('')
-            setVoiceState('idle')
-            setStatusText('마이크를 눌러 말씀하세요')
-            chatIdRef.current = consultationId || null
+        chatIdRef.current = consultationId || null
+    }, [consultationId])
 
-            const t = setTimeout(() => startListening(), 700)
-            return () => clearTimeout(t)
-        }
+    // 모달 열림/닫힘 시에만 초기화
+    useEffect(() => {
         if (!isOpen) {
             stopListening()
             stopAllAudio()
+            return
         }
-    }, [isOpen, activeChild, consultationId])
+        if (!activeChild) return
+
+        childRef.current = activeChild
+        setTranscript('')
+        setAiText('')
+        setVoiceState('idle')
+        setStatusText('마이크를 눌러 말씀하세요')
+
+        const t = setTimeout(() => startListening(), 700)
+        return () => clearTimeout(t)
+    }, [isOpen, activeChild])
 
     const getOrCreateChatRoom = useCallback(async (): Promise<string> => {
         if (chatIdRef.current) return chatIdRef.current
@@ -159,6 +164,18 @@ export function VoiceMode({ isOpen, onClose, activeChild, onSendVoice, disabled 
         })
         return chatIdRef.current
     }, [setConsultationId, addChatSession])
+
+    const syncTitleFromBackend = useCallback(async (roomId: string) => {
+        try {
+            const history = await fetchChatHistory(Number(roomId))
+            const title = buildChatTitleFromHistory(history, 30)
+            if (title) {
+                updateChatSession(Number(roomId), { title, isVoice: true })
+            }
+        } catch (e) {
+            console.error('Failed to sync voice chat title', e)
+        }
+    }, [updateChatSession])
 
     const syncHistoryFromBackend = useCallback(async (roomId: string) => {
         try {
@@ -409,7 +426,7 @@ export function VoiceMode({ isOpen, onClose, activeChild, onSendVoice, disabled 
                 }
             })
 
-            await syncHistoryFromBackend(roomId)
+            await syncTitleFromBackend(roomId)
         } catch (err: any) {
             console.error('[VoiceMode Backend Error]', err)
             setStatusText('오류가 발생했습니다. 다시 시도하세요.')
@@ -417,7 +434,7 @@ export function VoiceMode({ isOpen, onClose, activeChild, onSendVoice, disabled 
             updateLastMessage('죄송합니다. 음성 처리 중 오류가 발생했습니다.', true)
             toast.error(err.message || '음성 처리 실패')
         }
-    }, [getOrCreateChatRoom, addMessage, updateLastMessage, playAudioChunk, syncHistoryFromBackend])
+    }, [getOrCreateChatRoom, addMessage, updateLastMessage, playAudioChunk, syncTitleFromBackend])
 
     const handleMicButton = () => {
         if (voiceState === 'listening') {
