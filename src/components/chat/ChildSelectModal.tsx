@@ -1,8 +1,8 @@
 'use client'
 // src/components/chat/ChildSelectModal.tsx
-import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ChildResponse } from '@/lib/api'
+import { getChildColor } from '@/lib/childColors'
 
 interface Props {
     isOpen: boolean
@@ -31,14 +31,6 @@ const GENDER_ICON: Record<string, string> = {
     MALE: '👦',
     FEMALE: '👧',
 }
-
-const AVATAR_COLORS = [
-    'from-[#52B788] to-[#6EE7B7]',
-    'from-[#6366F1] to-[#A5B4FC]',
-    'from-[#F59E0B] to-[#FCD34D]',
-    'from-[#EF4444] to-[#FCA5A5]',
-    'from-[#8B5CF6] to-[#C4B5FD]',
-]
 
 export function ChildSelectModal({ isOpen, children, onSelect, onClose, onAddChild }: Props) {
     return (
@@ -75,8 +67,8 @@ export function ChildSelectModal({ isOpen, children, onSelect, onClose, onAddChi
 
                         {/* Children list */}
                         <div className="px-4 pb-4 flex flex-col gap-2 max-h-[50vh] overflow-y-auto">
-                            {children.map((child, idx) => {
-                                const avatarGradient = AVATAR_COLORS[idx % AVATAR_COLORS.length]
+                            {children.map((child) => {
+                                const color = getChildColor(child.id)
                                 const age = getAge(child.birthdate)
                                 const icon = GENDER_ICON[child.gender] || '🧒'
 
@@ -86,8 +78,10 @@ export function ChildSelectModal({ isOpen, children, onSelect, onClose, onAddChi
                                         onClick={() => onSelect(child)}
                                         className="flex items-center gap-4 p-4 rounded-[18px] border border-[rgba(82,183,136,0.15)] hover:border-[#52B788] hover:bg-[rgba(82,183,136,0.04)] active:scale-[0.98] transition-all group"
                                     >
-                                        {/* Avatar */}
-                                        <div className={`w-14 h-14 rounded-[16px] bg-gradient-to-br ${avatarGradient} flex items-center justify-center text-[26px] flex-shrink-0 shadow-sm`}>
+                                        <div
+                                            className="w-14 h-14 rounded-[16px] flex items-center justify-center text-[26px] flex-shrink-0 shadow-sm"
+                                            style={{ backgroundColor: color.bg }}
+                                        >
                                             {icon}
                                         </div>
 

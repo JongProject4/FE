@@ -3,14 +3,15 @@
 // Gemini-like Voice Chat Mode — full duplex voice conversation
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { sendVoiceMessageStream, ChatStreamResponse, getAccessToken, createChat, ChildResponse, getChildren } from '@/lib/api'
+import { sendVoiceMessageStream, ChatStreamResponse, getAccessToken, createChat, ChildResponse } from '@/lib/api'
+import { getChildColor } from '@/lib/childColors'
 import { useAppStore } from '@/lib/store'
 import toast from 'react-hot-toast'
 
 interface Props {
     isOpen: boolean
     onClose: () => void
-    onSend: (text: string) => void
+    activeChild: ChildResponse | null
     onSendVoice?: (blob: Blob) => void
     disabled?: boolean
 }
@@ -96,7 +97,7 @@ function pcmToWav(pcmData: Uint8Array, numChannels = 1, sampleRate = 24000): Arr
 
 type VoiceState = 'idle' | 'listening' | 'processing' | 'speaking'
 
-export function VoiceMode({ isOpen, onClose, onSend, onSendVoice, disabled }: Props) {
+export function VoiceMode({ isOpen, onClose, activeChild, onSendVoice, disabled }: Props) {
     const [voiceState, setVoiceState] = useState<VoiceState>('idle')
     const [transcript, setTranscript] = useState('')
     const [aiText, setAiText] = useState('')
@@ -117,28 +118,22 @@ export function VoiceMode({ isOpen, onClose, onSend, onSendVoice, disabled }: Pr
 
     // Initialize on open
     useEffect(() => {
-        if (isOpen) {
+        if (isOpen && activeChild) {
+            childRef.current = activeChild
             setTranscript('')
             setAiText('')
             setVoiceState('idle')
             setStatusText('마이크를 눌러 말씀하세요')
             chatIdRef.current = consultationId || null
 
-            // Load children if no child selected
-            if (!childRef.current) {
-                getChildren().then(children => {
-                    if (children.length > 0) childRef.current = children[0]
-                }).catch(console.error)
-            }
-
-            // Auto start mic
             const t = setTimeout(() => startListening(), 700)
             return () => clearTimeout(t)
-        } else {
+        }
+        if (!isOpen) {
             stopListening()
             stopAllAudio()
         }
-    }, [isOpen])
+    }, [isOpen, activeChild, consultationId])
 
     const getOrCreateChatRoom = useCallback(async (): Promise<string> => {
         if (chatIdRef.current) return chatIdRef.current
@@ -454,6 +449,7 @@ export function VoiceMode({ isOpen, onClose, onSend, onSendVoice, disabled }: Pr
     }
 
     const orbStyle = getOrbStyle()
+    const childColor = activeChild ? getChildColor(activeChild.id) : null
 
     return (
         <AnimatePresence>
@@ -465,10 +461,25 @@ export function VoiceMode({ isOpen, onClose, onSend, onSendVoice, disabled }: Pr
                     className="fixed inset-0 m-auto max-w-[430px] h-dvh z-[998] flex flex-col bg-[#0f172a] overflow-hidden"
                 >
                     {/* Top bar */}
-                    <div className="pt-12 pb-4 flex flex-col items-center">
+                    <div className="pt-12 pb-4 flex flex-col items-center px-4">
                         <p className="text-[13px] font-semibold text-white/80 tracking-wide">
                             AIYA 음성 상담
                         </p>
+                        {activeChild && childColor && (
+                            <div
+                                className="mt-3 flex items-center gap-2 px-4 py-2 rounded-full"
+                                style={{ backgroundColor: 'rgba(255,255,255,0.1)' }}
+                            >
+                                <span className="text-[18px]">{activeChild.gender === 'MALE' ? '👦' : '👧'}</span>
+                                <span
+                                    className="text-[14px] font-bold"
+                                    style={{ color: childColor.dot }}
+                                >
+                                    {activeChild.name}
+                                </span>
+                                <span className="text-[12px] text-white/60">의 상담</span>
+                            </div>
+                        )}
                     </div>
 
                     {/* Centered orb area */}

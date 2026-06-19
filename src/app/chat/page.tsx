@@ -10,8 +10,10 @@ import { ChatInput } from '@/components/chat/ChatInput'
 import { WelcomeScreen } from '@/components/chat/WelcomeScreen'
 import { QuickChips } from '@/components/chat/QuickChips'
 import { ChildSelectModal } from '@/components/chat/ChildSelectModal'
+import { VoiceMode } from '@/components/chat/VoiceMode'
 import { BottomNav } from '@/components/layout/BottomNav'
 import { saveChatMeta } from '@/lib/chatMetaStorage'
+import { getChildColor } from '@/lib/childColors'
 import toast from 'react-hot-toast'
 
 export default function ChatPage() {
@@ -61,8 +63,13 @@ export default function ChatPage() {
 
   // Child selector modal — shown when starting a new chat with multiple children
   const [showChildModal, setShowChildModal] = useState(false)
-  // Pending message waiting for child selection
-  const pendingMsgRef = useRef<string | null>(null)
+  const [voiceModeOpen, setVoiceModeOpen] = useState(false)
+  const inputRef = useRef<HTMLTextAreaElement>(null)
+  type PendingAction =
+    | { type: 'send'; text: string }
+    | { type: 'focus' }
+    | { type: 'voice' }
+  const pendingActionRef = useRef<PendingAction | null>(null)
 
   // Auth guard
   useEffect(() => {
@@ -255,66 +262,109 @@ export default function ChatPage() {
     }
   }, [isLoading, consultationId, addMessage, setConsultationId, setLoading, updateLastMessage, addChatSession, playAudioChunk])
 
+  const resolveChildForSession = useCallback((): ChildResponse | null => {
+    if (activeChild) return activeChild
+    if (allChildren.length === 1) return allChildren[0]
+    if (consultationId && allChildren.length > 0) return allChildren[0]
+    return null
+  }, [activeChild, allChildren, consultationId])
+
+  const openChildModal = useCallback((action: PendingAction) => {
+    if (allChildren.length === 0) {
+      toast.error('먼저 아이를 등록해주세요.')
+      router.push('/child-setup')
+      return
+    }
+    pendingActionRef.current = action
+    setShowChildModal(true)
+  }, [allChildren.length, router])
+
+  const ensureChildForNewSession = useCallback((action: PendingAction): boolean => {
+    if (consultationId) return true
+
+    const resolved = resolveChildForSession()
+    if (resolved) {
+      if (!activeChild) setActiveChild(resolved)
+      return true
+    }
+
+    if (allChildren.length > 1) {
+      openChildModal(action)
+      return false
+    }
+
+    return true
+  }, [consultationId, resolveChildForSession, activeChild, allChildren.length, openChildModal])
+
   // Entry point for send — handle child selection if needed
   const sendMessage = useCallback(async (text: string) => {
     if (!text.trim() && !uploadedImg) return
 
-    if (consultationId) {
-      const child = activeChild || allChildren[0]
-      if (child) setActiveChild(child)
-      doSendMessage(text, child || activeChild)
-      return
-    }
+    if (!ensureChildForNewSession({ type: 'send', text: text.trim() })) return
 
-    if (allChildren.length === 0) {
-      toast.error('먼저 아이를 등록해주세요.')
-      router.push('/child-setup')
-      return
-    }
-
-    if (allChildren.length === 1) {
-      setActiveChild(allChildren[0])
-      doSendMessage(text, allChildren[0])
-    } else {
-      pendingMsgRef.current = text
-      setShowChildModal(true)
-    }
-  }, [consultationId, uploadedImg, allChildren, activeChild, doSendMessage, router])
+    const child = resolveChildForSession()
+    if (!child) return
+    doSendMessage(text, child)
+  }, [uploadedImg, ensureChildForNewSession, resolveChildForSession, doSendMessage])
 
   const sendVoiceMessage = useCallback(async (blob: Blob) => {
-    if (consultationId) {
-      const child = activeChild || allChildren[0]
-      if (child) setActiveChild(child)
-      doSendVoiceMessage(blob, child || activeChild)
-      return
-    }
+    if (!ensureChildForNewSession({ type: 'voice' })) return
 
+    const child = resolveChildForSession()
+    if (!child) return
+    doSendVoiceMessage(blob, child)
+  }, [ensureChildForNewSession, resolveChildForSession, doSendVoiceMessage])
+
+  const handleBeforeInputFocus = useCallback(() => {
+    if (consultationId || activeChild) return true
     if (allChildren.length === 0) {
       toast.error('먼저 아이를 등록해주세요.')
       router.push('/child-setup')
-      return
+      return false
     }
-
     if (allChildren.length === 1) {
       setActiveChild(allChildren[0])
-      doSendVoiceMessage(blob, allChildren[0])
-    } else {
-      // If multiple children, we'd need a way to pass blob. Hack: save to state/ref.
-      // For now, auto-select first child or prompt. To fully support:
-      toast('새 음성 채팅은 첫 번째 아이로 진행됩니다.')
-      setActiveChild(allChildren[0])
-      doSendVoiceMessage(blob, allChildren[0])
+      return true
     }
-  }, [consultationId, allChildren, activeChild, doSendVoiceMessage, router])
+    openChildModal({ type: 'focus' })
+    return false
+  }, [consultationId, activeChild, allChildren, openChildModal, router])
+
+  const handleBeforeVoiceOpen = useCallback(() => {
+    if (consultationId) {
+      const child = resolveChildForSession()
+      if (child && !activeChild) setActiveChild(child)
+      return true
+    }
+    if (activeChild) return true
+    if (allChildren.length === 0) {
+      toast.error('먼저 아이를 등록해주세요.')
+      router.push('/child-setup')
+      return false
+    }
+    if (allChildren.length === 1) {
+      setActiveChild(allChildren[0])
+      return true
+    }
+    openChildModal({ type: 'voice' })
+    return false
+  }, [consultationId, activeChild, allChildren, resolveChildForSession, openChildModal, router])
 
   // Called when user picks a child from modal
   const handleChildSelected = useCallback((child: ChildResponse) => {
     setActiveChild(child)
     setShowChildModal(false)
-    const pending = pendingMsgRef.current
-    pendingMsgRef.current = null
-    if (pending) {
-      doSendMessage(pending, child)
+    const pending = pendingActionRef.current
+    pendingActionRef.current = null
+
+    if (!pending) return
+
+    if (pending.type === 'send') {
+      doSendMessage(pending.text, child)
+    } else if (pending.type === 'focus') {
+      requestAnimationFrame(() => inputRef.current?.focus())
+    } else if (pending.type === 'voice') {
+      setVoiceModeOpen(true)
     }
   }, [doSendMessage])
 
@@ -330,25 +380,33 @@ export default function ChatPage() {
     <main className="flex flex-col h-dvh max-w-[430px] mx-auto bg-[#F4FCFB] overflow-hidden">
       <ChatHeader
         onNewChat={() => {
-          // Reset active child so user picks again for new chat
           setActiveChild(null)
+          setConsultationId(null)
+          setMessages([])
           if (allChildren.length > 1) {
-            setShowChildModal(true)
+            openChildModal({ type: 'focus' })
+          } else if (allChildren.length === 1) {
+            setActiveChild(allChildren[0])
           }
         }}
       />
 
       {/* Active child pill — show which child this chat is about */}
-      {activeChild && (
+      {activeChild && (() => {
+        const childColor = getChildColor(activeChild.id)
+        return (
         <div className="flex items-center gap-2 px-4 py-2 bg-white border-b border-[rgba(82,183,136,0.12)]">
-          <div className="flex items-center gap-2 bg-[rgba(82,183,136,0.08)] px-3 py-1.5 rounded-full">
+          <div
+            className="flex items-center gap-2 px-3 py-1.5 rounded-full"
+            style={{ backgroundColor: childColor.bg }}
+          >
             <span className="text-sm">{activeChild.gender === 'MALE' ? '👦' : '👧'}</span>
-            <span className="text-[13px] font-bold text-[#52B788]">{activeChild.name}</span>
+            <span className="text-[13px] font-bold" style={{ color: childColor.text }}>{activeChild.name}</span>
             <span className="text-[11px] text-[#94A3B8]">의 상담</span>
           </div>
           {!consultationId && allChildren.length > 1 && (
             <button
-              onClick={() => { pendingMsgRef.current = null; setShowChildModal(true) }}
+              onClick={() => openChildModal({ type: 'focus' })}
               className="text-[11px] text-[#94A3B8] hover:text-[#52B788] transition-colors ml-auto"
             >
               변경
@@ -411,7 +469,8 @@ export default function ChatPage() {
             </button>
           )}
         </div>
-      )}
+        )
+      })()}
 
       <div className="flex-1 overflow-y-auto" id="messages-container">
         {messages.length === 0 ? (
@@ -435,6 +494,11 @@ export default function ChatPage() {
         onImageUpload={setUploadedImg}
         uploadedImg={uploadedImg}
         disabled={isLoading}
+        inputRef={inputRef}
+        onBeforeFocus={handleBeforeInputFocus}
+        onOpenVoiceMode={() => setVoiceModeOpen(true)}
+        onBeforeVoiceOpen={handleBeforeVoiceOpen}
+        needsChildSelection={!consultationId && !activeChild && allChildren.length > 1}
       />
 
       <div className="text-center text-[10px] text-[#94A3B8] py-1 bg-white">
@@ -449,12 +513,21 @@ export default function ChatPage() {
         onSelect={handleChildSelected}
         onClose={() => {
           setShowChildModal(false)
-          pendingMsgRef.current = null
+          pendingActionRef.current = null
         }}
         onAddChild={() => {
           setShowChildModal(false)
+          pendingActionRef.current = null
           router.push('/child-setup')
         }}
+      />
+
+      <VoiceMode
+        isOpen={voiceModeOpen}
+        onClose={() => setVoiceModeOpen(false)}
+        activeChild={activeChild}
+        onSendVoice={sendVoiceMessage}
+        disabled={isLoading}
       />
     </main>
   )
