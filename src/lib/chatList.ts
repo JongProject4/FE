@@ -2,6 +2,13 @@ import { getChildren, getChatRooms, getChatHistory } from '@/lib/api'
 import { getChatMeta } from '@/lib/chatMetaStorage'
 import type { ChatSession } from '@/lib/store'
 
+function toEventDateKey(time?: string): string | null {
+    if (!time) return null
+    const date = new Date(time)
+    if (Number.isNaN(date.getTime())) return null
+    return `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`
+}
+
 function truncate(text: string, maxLength: number): string {
     const normalized = text.trim()
     if (normalized.length <= maxLength) return normalized
@@ -38,6 +45,7 @@ export async function fetchChatSessions(titleMaxLength = 30): Promise<ChatSessio
             const stored = getChatMeta(id)
             let title = stored?.title ?? `${child.name}의 상담 #${id}`
             let date = stored?.date ?? new Date().toLocaleDateString('ko-KR')
+            let eventDateKey: string | undefined
 
             try {
                 const messages = await getChatHistory(id)
@@ -47,9 +55,14 @@ export async function fetchChatSessions(titleMaxLength = 30): Promise<ChatSessio
                 }
                 if (firstUserMsg?.time) {
                     date = formatDate(firstUserMsg.time)
+                    eventDateKey = toEventDateKey(firstUserMsg.time) ?? undefined
                 }
             } catch (e) {
                 console.error(`Failed to load chat ${id}`, e)
+            }
+
+            if (!eventDateKey) {
+                eventDateKey = toEventDateKey(stored?.date) ?? toEventDateKey(new Date().toISOString()) ?? undefined
             }
 
             sessions.push({
@@ -59,6 +72,7 @@ export async function fetchChatSessions(titleMaxLength = 30): Promise<ChatSessio
                 childName: child.name,
                 category: stored?.category ?? 'ANALYZING',
                 riskLevel: stored?.riskLevel ?? 'ANALYZING',
+                eventDateKey,
             })
         }
     }

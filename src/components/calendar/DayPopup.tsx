@@ -1,7 +1,10 @@
 'use client'
 // src/components/calendar/DayPopup.tsx
-import { CalendarEvent, ClinicRecord, MedRecord } from './types'
+import { useRouter } from 'next/navigation'
+import { CalendarEvent, ClinicRecord, MedRecord, ConsultationRecord } from './types'
 import { formatDateLabel } from './utils'
+import { getCategoryLabel, getRiskLabel } from '@/lib/chatLabels'
+import { useAppStore } from '@/lib/store'
 
 interface Props {
   date: Date
@@ -12,26 +15,59 @@ interface Props {
   onRemove: (id: string) => void
 }
 
+function ConsultationItem({ event }: { event: ConsultationRecord }) {
+  const router = useRouter()
+  const { setConsultationId, setMessages } = useAppStore()
+
+  const openChat = () => {
+    setConsultationId(String(event.chatId))
+    setMessages([])
+    router.push('/chat')
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={openChat}
+      className="flex items-start gap-3 py-3 w-full text-left hover:bg-[rgba(139,92,246,0.04)] rounded-xl px-1 -mx-1 transition-colors"
+    >
+      <div className="w-2 h-2 rounded-full bg-[#8B5CF6] mt-2 flex-shrink-0" />
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 mb-1">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8B5CF6" strokeWidth="2" className="shrink-0">
+            <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />
+          </svg>
+          <span className="text-[14px] font-semibold text-[#334155] truncate">AI 상담</span>
+          <span className="px-2 py-0.5 bg-[#EDE9FE] text-[#7C3AED] text-[10px] font-semibold rounded-full flex-shrink-0">상담</span>
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5 mb-1">
+          <span className="rounded-full bg-[#F1F5F9] px-2 py-0.5 text-[10px] font-semibold text-[#94A3B8]">
+            {getCategoryLabel(event.category)}
+          </span>
+          <span className="rounded-full bg-[#F1F5F9] px-2 py-0.5 text-[10px] font-semibold text-[#94A3B8]">
+            {getRiskLabel(event.riskLevel)}
+          </span>
+        </div>
+        <div className="text-[12px] text-[#94A3B8] truncate">{event.childName}</div>
+        {event.title && event.title !== 'AI 상담' && (
+          <div className="text-[11px] text-[#64748B] mt-0.5 truncate">{event.title}</div>
+        )}
+      </div>
+    </button>
+  )
+}
+
 function ClinicItem({ event }: { event: ClinicRecord }) {
   return (
     <div className="flex items-start gap-3 py-3">
-      <div className="w-2 h-2 rounded-full bg-[#52B788] mt-1.5 flex-shrink-0" />
+      <div className="w-2 h-2 rounded-full bg-[#E24B4A] mt-1.5 flex-shrink-0" />
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-0.5">
           <span className="text-[14px] font-medium text-[#334155] truncate">{event.hospital}</span>
-          <span className="px-2 py-0.5 bg-[rgba(82,183,136,0.12)] text-[#52B788] text-[10px] font-semibold rounded-full flex-shrink-0">내원</span>
+          <span className="px-2 py-0.5 bg-[rgba(226,75,74,0.12)] text-[#E24B4A] text-[10px] font-semibold rounded-full flex-shrink-0">내원</span>
         </div>
         <div className="text-[12px] text-[#475569]">{event.diagnosis}</div>
-        {event.hasNextVisit && event.nextVisitDate && (
-          <div className="text-[11px] text-[#94A3B8] mt-0.5">
-            다음 내원: {event.nextVisitDate}
-          </div>
-        )}
-        {event.medications.length > 0 && (
-          <div className="text-[11px] text-[#52B788] mt-0.5">
-            복약: {event.medications.map(m => m.name).join(', ')}
-          </div>
-        )}
+        <div className="text-[11px] text-[#94A3B8] mt-0.5">{event.childName}</div>
       </div>
     </div>
   )
@@ -40,7 +76,7 @@ function ClinicItem({ event }: { event: ClinicRecord }) {
 function MedItem({ event }: { event: MedRecord }) {
   return (
     <div className="flex items-start gap-3 py-3">
-      <div className="w-2 h-2 rounded-full bg-[#6EE7B7] mt-1.5 flex-shrink-0" />
+      <div className="w-2 h-2 rounded-full bg-[#52B788] mt-1.5 flex-shrink-0" />
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-0.5">
           <span className="text-[14px] font-medium text-[#334155] truncate">{event.medName}</span>
@@ -49,23 +85,18 @@ function MedItem({ event }: { event: MedRecord }) {
         <div className="text-[12px] text-[#475569]">
           {event.startDate} ~ {event.endDate}
         </div>
-        {event.times.length > 0 && (
-          <div className="text-[11px] text-[#94A3B8] mt-0.5">
-            복용 시간: {event.times.join(', ')}
-          </div>
-        )}
-        {event.alarmEnabled && (
-          <div className="text-[11px] text-[#52B788] mt-0.5">알림 설정됨</div>
-        )}
+        <div className="text-[11px] text-[#94A3B8] mt-0.5">{event.childName}</div>
       </div>
     </div>
   )
 }
 
-export function DayPopup({ date, events, onClose, onAddClinic, onAddMed, onRemove }: Props) {
+export function DayPopup({ date, events, onClose, onAddClinic, onAddMed }: Props) {
+  const consultations = events.filter((e): e is ConsultationRecord => e.type === 'consultation')
+  const others = events.filter(e => e.type !== 'consultation')
+
   return (
-    <div className="bg-white rounded-3xl shadow-xl border border-[rgba(82,183,136,0.15)] overflow-hidden mb-4">
-      {/* Header */}
+    <div className="bg-white rounded-3xl shadow-2xl border border-[rgba(82,183,136,0.15)] overflow-hidden w-full max-w-[390px]">
       <div className="flex items-center justify-between px-4 py-3 border-b border-[rgba(82,183,136,0.1)]">
         <h3 className="text-[15px] font-semibold text-[#334155]">{formatDateLabel(date)}</h3>
         <button
@@ -78,22 +109,25 @@ export function DayPopup({ date, events, onClose, onAddClinic, onAddMed, onRemov
         </button>
       </div>
 
-      {/* Event list */}
-      <div className="px-4 divide-y divide-[rgba(82,183,136,0.08)]">
+      <div className="px-4 divide-y divide-[rgba(82,183,136,0.08)] max-h-[50vh] overflow-y-auto">
         {events.length === 0 ? (
           <div className="py-6 text-center">
             <div className="text-[13px] text-[#94A3B8]">이 날 기록이 없습니다</div>
           </div>
         ) : (
-          events.map((event) =>
-            event.type === 'clinic'
-              ? <ClinicItem key={event.id} event={event as ClinicRecord} />
-              : <MedItem key={event.id} event={event as MedRecord} />
-          )
+          <>
+            {consultations.map((event) => (
+              <ConsultationItem key={event.id} event={event} />
+            ))}
+            {others.map((event) =>
+              event.type === 'clinic'
+                ? <ClinicItem key={event.id} event={event as ClinicRecord} />
+                : <MedItem key={event.id} event={event as MedRecord} />
+            )}
+          </>
         )}
       </div>
 
-      {/* Add buttons */}
       <div className="flex gap-2 px-4 py-3 border-t border-[rgba(82,183,136,0.1)]">
         <button
           onClick={onAddClinic}

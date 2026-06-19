@@ -1,6 +1,19 @@
 // src/components/calendar/types.ts
 
-export type EventType = 'clinic' | 'med'
+export type EventType = 'clinic' | 'med' | 'consultation'
+
+export interface ConsultationRecord {
+  id: string
+  type: 'consultation'
+  childId: string
+  childName: string
+  title: string
+  category?: string
+  riskLevel?: string
+  chatId: number
+  date: string
+  createdAt: string
+}
 
 export interface ClinicRecord {
   id: string
@@ -37,7 +50,7 @@ export interface MedRecord {
   createdAt: string
 }
 
-export type CalendarEvent = ClinicRecord | MedRecord
+export type CalendarEvent = ClinicRecord | MedRecord | ConsultationRecord
 
 export interface DayEvents {
   [dateKey: string]: CalendarEvent[]  // key: "YYYY-M-D"

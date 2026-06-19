@@ -84,6 +84,7 @@ export function WeeklyView({ year, month, events, onDayClick, onPrevWeek, onNext
                 {weekDays.map((date, idx) => {
                     const key = dateKey(date)
                     const dayEvents = events[key] || []
+                    const consultations = dayEvents.filter(e => e.type === 'consultation')
                     const hasClinic = dayEvents.some(e => e.type === 'clinic')
                     const hasMed = dayEvents.some(e => e.type === 'med')
                     const todayFlag = isToday(date)
@@ -93,10 +94,10 @@ export function WeeklyView({ year, month, events, onDayClick, onPrevWeek, onNext
                         <button
                             key={idx}
                             onClick={() => onDayClick(date)}
-                            className="min-h-[60px] rounded-[8px] p-1 flex flex-col items-center hover:bg-[rgba(82,183,136,0.08)] active:scale-95 cursor-pointer transition-colors"
+                            className="min-h-[68px] rounded-[8px] p-1 flex flex-col items-center justify-start pt-1 hover:bg-[rgba(82,183,136,0.08)] active:scale-95 cursor-pointer transition-colors"
                         >
                             <div
-                                className={`w-7 h-7 flex items-center justify-center text-[13px] leading-none mb-1 ${todayFlag
+                                className={`w-7 h-7 flex items-center justify-center text-[13px] leading-none shrink-0 ${todayFlag
                                     ? 'rounded-full bg-[#52B788] text-white font-semibold'
                                     : dow === 0
                                         ? 'text-[#E24B4A]'
@@ -107,28 +108,22 @@ export function WeeklyView({ year, month, events, onDayClick, onPrevWeek, onNext
                             >
                                 {date.getDate()}
                             </div>
-                            {/* Event dots */}
-                            <div className="flex gap-[3px]">
-                                {hasClinic && <div className="w-[5px] h-[5px] rounded-full bg-[#E24B4A]" />}
-                                {hasMed && <div className="w-[5px] h-[5px] rounded-full bg-[#52B788]" />}
-                            </div>
-                            {/* Mini event label */}
-                            {dayEvents.length > 0 && (
-                                <div className="mt-1 w-full flex flex-col gap-[2px] items-center">
-                                    {dayEvents.slice(0, 1).map((ev, evIdx) => (
-                                        <span
-                                            key={evIdx}
-                                            className={`text-[8px] px-1 py-[1px] rounded-full leading-tight text-white truncate max-w-full ${ev.type === 'clinic' ? 'bg-[#E24B4A]' : 'bg-[#52B788]'
-                                                }`}
-                                        >
-                                            {ev.type === 'clinic' ? (ev as any).hospital : (ev as any).medName}
-                                        </span>
-                                    ))}
-                                    {dayEvents.length > 1 && (
-                                        <span className="text-[8px] text-[#94A3B8]">+{dayEvents.length - 1}</span>
+
+                            {consultations.length > 0 && (
+                                <div className="mt-1 flex flex-col items-center gap-[2px]">
+                                    <span className="inline-flex items-center gap-0.5 text-[8px] font-bold px-1.5 py-[2px] rounded-md text-white bg-[#8B5CF6]">
+                                        상담
+                                    </span>
+                                    {consultations.length > 1 && (
+                                        <span className="text-[8px] text-[#94A3B8]">+{consultations.length - 1}</span>
                                     )}
                                 </div>
                             )}
+
+                            <div className="mt-auto pt-1 flex gap-[3px]">
+                                {hasClinic && <div className="w-[5px] h-[5px] rounded-full bg-[#E24B4A]" />}
+                                {hasMed && <div className="w-[5px] h-[5px] rounded-full bg-[#52B788]" />}
+                            </div>
                         </button>
                     )
                 })}
@@ -150,7 +145,9 @@ export function WeeklyView({ year, month, events, onDayClick, onPrevWeek, onNext
                         }).map(({ date, ev }, idx) => (
                             <div
                                 key={idx}
-                                className={`flex items-center gap-3 p-2 rounded-xl ${ev.type === 'clinic'
+                                className={`flex items-center gap-3 p-2 rounded-xl ${ev.type === 'consultation'
+                                    ? 'bg-[rgba(139,92,246,0.08)] border-l-[3px] border-[#8B5CF6]'
+                                    : ev.type === 'clinic'
                                     ? 'bg-[rgba(226,75,74,0.08)] border-l-[3px] border-[#E24B4A]'
                                     : 'bg-[rgba(82,183,136,0.08)] border-l-[3px] border-[#52B788]'
                                     }`}
@@ -161,18 +158,27 @@ export function WeeklyView({ year, month, events, onDayClick, onPrevWeek, onNext
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <p className="text-[12px] font-semibold text-[#334155] truncate">
-                                        {ev.type === 'clinic' ? (ev as any).hospital : (ev as any).medName}
+                                        {ev.type === 'consultation'
+                                            ? 'AI 상담'
+                                            : ev.type === 'clinic'
+                                                ? (ev as { hospital: string }).hospital
+                                                : (ev as { medName: string }).medName}
                                     </p>
                                     <p className="text-[11px] text-[#64748B] truncate">
-                                        {ev.type === 'clinic' ? '🏥 내원 기록' : '💊 복약 기록'}
-                                        {ev.type === 'clinic' && (ev as any).diagnosis ? ` · ${(ev as any).diagnosis}` : ''}
+                                        {ev.type === 'consultation'
+                                            ? `💬 ${(ev as { childName: string }).childName}`
+                                            : ev.type === 'clinic'
+                                                ? `🏥 내원 기록 · ${(ev as { diagnosis?: string }).diagnosis || ''}`
+                                                : '💊 복약 기록'}
                                     </p>
                                 </div>
-                                <span className={`text-[10px] px-2 py-[2px] rounded-full font-medium ${ev.type === 'clinic'
+                                <span className={`text-[10px] px-2 py-[2px] rounded-full font-medium ${ev.type === 'consultation'
+                                    ? 'bg-[#8B5CF6] text-white'
+                                    : ev.type === 'clinic'
                                     ? 'bg-[#E24B4A] text-white'
                                     : 'bg-[#52B788] text-white'
                                     }`}>
-                                    {ev.type === 'clinic' ? '내원' : '복약'}
+                                    {ev.type === 'consultation' ? '상담' : ev.type === 'clinic' ? '내원' : '복약'}
                                 </span>
                             </div>
                         ))}

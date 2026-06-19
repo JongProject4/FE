@@ -39,6 +39,7 @@ export function groupEventsByType(events: CalendarEvent[]) {
   return {
     clinic: events.filter(e => e.type === 'clinic'),
     med: events.filter(e => e.type === 'med'),
+    consultation: events.filter(e => e.type === 'consultation'),
   }
 }
 

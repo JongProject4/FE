@@ -24,6 +24,7 @@ export function CalendarPage({ initialChildren }: Props) {
   const [year, setYear] = useState(today.getFullYear())
   const [month, setMonth] = useState(today.getMonth())
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
+  const [showDayPopup, setShowDayPopup] = useState(false)
   const [view, setView] = useState<View>('calendar')
   const [successMsg, setSuccessMsg] = useState({ title: '', sub: '' })
   const [children, setChildren] = useState<Child[]>(initialChildren || [])
@@ -87,6 +88,10 @@ export function CalendarPage({ initialChildren }: Props) {
           })
           setEvents((prevEvents) => ({ ...prevEvents, ...newEvents }))
         }
+
+        const { fetchConsultationCalendarEvents, mergeConsultationEvents } = await import('@/lib/chatCalendar')
+        const consultationEvents = await fetchConsultationCalendarEvents()
+        setEvents((prev) => mergeConsultationEvents(prev, consultationEvents))
       } catch (err) {
         console.error('Failed to load calendar data', err)
       } finally {
@@ -98,7 +103,7 @@ export function CalendarPage({ initialChildren }: Props) {
 
   const handleDayClick = (date: Date) => {
     setSelectedDate(date)
-    setView('day')
+    setShowDayPopup(true)
   }
 
   const handlePrevMonth = () => {
@@ -140,7 +145,7 @@ export function CalendarPage({ initialChildren }: Props) {
 
       {/* ── 캘린더 뷰 ── */}
       {view === 'calendar' && (
-        <div className="flex-1 overflow-y-auto px-5 pt-6 pb-6 mt-2">
+        <div className="flex-1 overflow-y-auto px-5 pt-6 pb-6 mt-2 relative">
           {/* Header with toggle */}
           <div className="flex items-center justify-between mb-5">
             <h1 className="text-[24px] font-black tracking-tight text-[#334155]">
@@ -193,45 +198,36 @@ export function CalendarPage({ initialChildren }: Props) {
               weekOffset={weekOffset}
             />
           )}
+
         </div>
       )}
 
-      {/* ── 하루 이벤트 뷰 ── */}
-      {view === 'day' && selectedDate && (
-        <div className="flex flex-col h-full">
-          {/* Back to calendar */}
-          <div className="flex items-center gap-3 px-4 py-3 bg-white border-b border-[rgba(82,183,136,0.12)] flex-shrink-0">
-            <button
-              onClick={() => setView('calendar')}
-              className="w-8 h-8 rounded-full border border-[rgba(82,183,136,0.2)] flex items-center justify-center text-[#475569] hover:bg-[rgba(82,183,136,0.08)]">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <path d="M15 18l-6-6 6-6" />
-              </svg>
-            </button>
-            <h2 className="text-[15px] font-semibold text-[#334155]">
-              {year}년 {month + 1}월
-            </h2>
-          </div>
-          <div className="flex-1 overflow-y-auto p-4">
+      {view === 'calendar' && showDayPopup && selectedDate && (
+        <div
+          className="fixed inset-0 z-50 flex items-start justify-center pt-[72px] px-4 pb-24 bg-[#334155]/25"
+          style={{ maxWidth: 430, margin: '0 auto' }}
+          onClick={() => setShowDayPopup(false)}
+        >
+          <div className="w-full px-1" onClick={(e) => e.stopPropagation()}>
             <DayPopup
               date={selectedDate}
               events={dayEvents}
-              onClose={() => setView('calendar')}
-              onAddClinic={() => setView('clinic-form')}
-              onAddMed={() => setView('med-form')}
+              onClose={() => setShowDayPopup(false)}
+              onAddClinic={() => { setShowDayPopup(false); setView('clinic-form') }}
+              onAddMed={() => { setShowDayPopup(false); setView('med-form') }}
               onRemove={handleRemoveEvent}
             />
           </div>
         </div>
       )}
 
-      {/* ── 내원 기록 폼 ── */}
+      {/* ── 내원/복약 폼은 전체 화면 ── */}
       {view === 'clinic-form' && selectedDate && (
         <ClinicForm
           date={selectedDate}
           children={children}
           onSave={handleSaveClinic}
-          onBack={() => setView('day')}
+          onBack={() => { setView('calendar'); setShowDayPopup(true) }}
         />
       )}
 
@@ -241,7 +237,7 @@ export function CalendarPage({ initialChildren }: Props) {
           date={selectedDate}
           children={children}
           onSave={handleSaveMed}
-          onBack={() => setView('day')}
+          onBack={() => { setView('calendar'); setShowDayPopup(true) }}
         />
       )}
 
@@ -257,7 +253,7 @@ export function CalendarPage({ initialChildren }: Props) {
           <p className="text-[14px] text-[#475569] mb-8">{successMsg.sub}</p>
           <div className="flex gap-3 w-full max-w-[280px]">
             <button
-              onClick={() => { setView('day') }}
+              onClick={() => { setView('calendar'); setShowDayPopup(true) }}
               className="flex-1 py-3 rounded-xl border border-[rgba(82,183,136,0.2)] text-[14px] font-medium text-[#52B788] hover:bg-[rgba(82,183,136,0.08)] transition-colors">
               날짜로
             </button>
