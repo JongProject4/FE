@@ -11,7 +11,8 @@ function LoginSuccessHandler() {
     const searchParams = useSearchParams()
 
     useEffect(() => {
-        const token = searchParams.get('token')
+        // Support both query names from backend implementations.
+        const token = searchParams.get('token') || searchParams.get('jwt')
 
         if (token) {
             // JWT 토큰 저장

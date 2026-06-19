@@ -3,7 +3,11 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAppStore } from '@/lib/store'
-import { getChildren, getChatRooms, getChatHistory } from '@/lib/api'
+import { fetchChatSessions } from '@/lib/chatList'
+import { getCategoryLabel, getRiskLabel } from '@/lib/chatLabels'
+import { ChatListItemMeta } from '@/components/chat/ChatListItemMeta'
+import { useDeleteChat } from '@/hooks/useDeleteChat'
+import { ChatDeleteButton } from '@/components/chat/ChatDeleteButton'
 import { BottomNav } from '@/components/layout/BottomNav'
 
 export default function ChatsPage() {
@@ -14,61 +18,22 @@ export default function ChatsPage() {
     } = useAppStore()
     const [search, setSearch] = useState('')
     const [loading, setLoading] = useState(false)
+    const { deleteChatById } = useDeleteChat()
 
-    // Backend'dan to'liq tarixni yuklash
     const loadHistory = async (forceRefresh = false) => {
         if (historyLoaded && !forceRefresh && chatSessions.length > 0) {
-            return // Use cached data
+            return
         }
 
         setLoading(true)
         try {
-            const children = await getChildren()
-            if (children.length > 0) {
-                const allMapped: typeof chatSessions = []
-
-                for (const child of children) {
-                    const roomIds = await getChatRooms(child.id)
-                    if (Array.isArray(roomIds)) {
-                        // Backend might return objects [{chatId: 1}] or numbers [1, 2]
-                        const parsedIds = roomIds.map((item: any) =>
-                            typeof item === 'object' && item !== null ? (item.chatId || item.id) : item
-                        ).map(Number).filter(id => !isNaN(id))
-
-                        const sortedIds = [...parsedIds].sort((a, b) => b - a)
-
-                        for (const id of sortedIds) {
-                            let title = `${child.name}의 상담 #${id}`
-                            try {
-                                const messages = await getChatHistory(id)
-                                const firstUserMsg = messages.find(m => m.role === 'USER')
-                                if (firstUserMsg) {
-                                    title = firstUserMsg.content.length > 30
-                                        ? firstUserMsg.content.substring(0, 30) + '...'
-                                        : firstUserMsg.content
-                                }
-                            } catch (e) {
-                                console.error(`Failed to load title for chat ${id}`, e)
-                            }
-
-                            allMapped.push({
-                                id,
-                                title,
-                                date: new Date().toLocaleDateString('ko-KR'),
-                                childName: child.name,
-                            })
-                        }
-                    }
-                }
-                const sorted = allMapped.sort((a, b) => b.id - a.id)
-                setChatSessions(sorted)
-                setHistoryLoaded(true)
-            } else {
-                setChatSessions([])
-                setHistoryLoaded(true)
-            }
+            const sessions = await fetchChatSessions(30)
+            setChatSessions(sessions)
+            setHistoryLoaded(true)
         } catch (err) {
             console.error('History load failed', err)
+            setChatSessions([])
+            setHistoryLoaded(true)
         } finally {
             setLoading(false)
         }
@@ -80,12 +45,13 @@ export default function ChatsPage() {
 
     const filteredChats = chatSessions.filter(chat =>
         chat.title.toLowerCase().includes(search.toLowerCase()) ||
-        chat.childName.toLowerCase().includes(search.toLowerCase())
+        chat.childName.toLowerCase().includes(search.toLowerCase()) ||
+        getCategoryLabel(chat.category).includes(search) ||
+        getRiskLabel(chat.riskLevel).includes(search)
     )
 
     return (
         <main className="flex flex-col h-dvh max-w-[430px] mx-auto bg-[#F4FCFB] overflow-hidden relative">
-            {/* Top Navigation */}
             <header className="flex items-center justify-between px-4 pt-6 pb-2">
                 <button
                     onClick={() => router.back()}
@@ -96,7 +62,6 @@ export default function ChatsPage() {
                     <div className="w-5 h-[2px] bg-current rounded-full" />
                 </button>
 
-                {/* Refresh button */}
                 <button
                     onClick={() => loadHistory(true)}
                     disabled={loading}
@@ -110,13 +75,11 @@ export default function ChatsPage() {
                 </button>
             </header>
 
-            {/* Title */}
             <div className="px-5 mb-5 mt-2">
                 <h1 className="text-[32px] font-black text-[#334155] tracking-tighter">상담 목록</h1>
                 <p className="text-[13px] text-[#94A3B8] mt-1">총 {chatSessions.length}개의 상담</p>
             </div>
 
-            {/* Search Input */}
             <div className="px-5 mb-4">
                 <div className="relative">
                     <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#94A3B8]">
@@ -134,7 +97,6 @@ export default function ChatsPage() {
                 </div>
             </div>
 
-            {/* Chat List */}
             <div className="flex-1 overflow-y-auto px-2 pb-[100px]">
                 {loading && chatSessions.length === 0 ? (
                     <div className="py-10 text-center">
@@ -143,18 +105,27 @@ export default function ChatsPage() {
                     </div>
                 ) : filteredChats.length > 0 ? (
                     filteredChats.map((chat) => (
-                        <button
+                        <div
                             key={chat.id}
-                            onClick={() => {
-                                setConsultationId(String(chat.id))
-                                setMessages([]) // Clear local messages, ChatPage will load them
-                                router.push('/chat')
-                            }}
-                            className="w-full text-left px-4 py-3.5 mb-1 rounded-2xl hover:bg-[rgba(82,183,136,0.06)] active:scale-[0.98] transition-all group"
+                            className="group mb-1 flex items-center gap-1 rounded-2xl hover:bg-[rgba(82,183,136,0.06)] transition-all"
                         >
-                            <div className="text-[16px] font-bold text-[#334155] group-hover:text-[#52B788] truncate mb-1 transition-colors">{chat.title}</div>
-                            <div className="text-[13px] text-[#94A3B8] font-medium">{chat.childName} · {chat.date}</div>
-                        </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setConsultationId(String(chat.id))
+                                    setMessages([])
+                                    router.push('/chat')
+                                }}
+                                className="min-w-0 flex-1 text-left px-4 py-3.5 active:scale-[0.98] transition-all"
+                            >
+                                <ChatListItemMeta chat={chat} titleClassName="text-[16px] font-bold mb-1" />
+                            </button>
+                            <ChatDeleteButton
+                                chatId={chat.id}
+                                onDelete={deleteChatById}
+                                className="mr-2"
+                            />
+                        </div>
                     ))
                 ) : (
                     <div className="py-10 text-center text-[#94A3B8] font-medium text-[14px]">
@@ -163,7 +134,6 @@ export default function ChatsPage() {
                 )}
             </div>
 
-            {/* Floating Action Button (New Chat) */}
             <button
                 onClick={() => {
                     useAppStore.getState().clearMessages()

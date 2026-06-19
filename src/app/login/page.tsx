@@ -2,9 +2,10 @@
 // src/app/login/page.tsx
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
-import { getAccessToken, getGoogleLoginUrl } from '@/lib/api'
+import { getAccessToken, getGoogleLoginUrl, setAccessToken } from '@/lib/api'
 
 const SLIDES = [
   {
@@ -29,19 +30,28 @@ const SLIDES = [
 
 export default function LoginPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [loading, setLoading] = useState(false)
   const [step, setStep] = useState(0) // 0, 1, 2 are slides, 3 is login
   const [checking, setChecking] = useState(true)
 
   // 이미 로그인되어 있으면 채팅으로 이동
   useEffect(() => {
+    // Support backend redirects like /login?jwt=... or /login?token=...
+    const redirectToken = searchParams.get('token') || searchParams.get('jwt')
+    if (redirectToken) {
+      setAccessToken(redirectToken)
+      router.replace('/chat')
+      return
+    }
+
     const token = getAccessToken()
     if (token) {
       router.replace('/chat')
     } else {
       setChecking(false)
     }
-  }, [router])
+  }, [router, searchParams])
 
   // Auto-play for onboarding steps
   useEffect(() => {

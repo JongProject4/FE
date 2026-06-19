@@ -3,7 +3,7 @@
 // 백엔드 API 클라이언트 - Spring Boot 서버와 통신
 
 // Backend API URL configuration
-const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL || 'https://aikids.duckdns.org').trim().replace(/\/$/, '')
+const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080').replace(/\/$/, '')
 if (typeof window !== 'undefined') (window as any).API_BASE_URL = API_BASE_URL
 
 // ── JWT 토큰 관리 ──
@@ -40,7 +40,6 @@ async function apiFetch<T>(
     const res = await fetch(`${API_BASE_URL}${endpoint}`, {
         ...options,
         headers,
-        cache: 'no-store',
     })
 
     if (res.status === 401) {
@@ -60,14 +59,11 @@ async function apiFetch<T>(
     if (res.status === 204) return undefined as T
 
     const text = await res.text()
-    if (!text || text.trim() === '') {
-        return undefined as T
-    }
+    if (!text || text.trim() === '') return undefined as T
 
     try {
-        return JSON.parse(text)
-    } catch (e) {
-        // If for some reason the text isn't JSON, just return it as any (or throw)
+        return JSON.parse(text) as T
+    } catch {
         return text as unknown as T
     }
 }
@@ -312,7 +308,6 @@ export async function sendVoiceMessageStream(
     const token = getAccessToken();
     const formData = new FormData();
 
-    // Determine correct file extension from MIME
     let ext = 'webm'
     const mime = blob.type || ''
     if (mime.includes('mp4') || mime.includes('m4a')) ext = 'm4a'
@@ -329,8 +324,6 @@ export async function sendVoiceMessageStream(
         headers['Authorization'] = `Bearer ${token}`;
     }
 
-    console.log(`[Voice API] Sending ${blob.size} bytes (${mime}) to /api/chats/${chatId}/voices`)
-
     const response = await fetch(`${API_BASE_URL}/api/chats/${chatId}/voices`, {
         method: 'POST',
         headers,
@@ -339,7 +332,6 @@ export async function sendVoiceMessageStream(
 
     if (!response.ok) {
         const errorBody = await response.text().catch(() => '');
-        console.error('[Voice API] Error response:', response.status, errorBody);
         throw new Error(`Voice Stream Error ${response.status}: ${errorBody || response.statusText}`);
     }
 
@@ -354,20 +346,17 @@ export async function sendVoiceMessageStream(
 
         buffer += decoder.decode(value, { stream: true });
         const lines = buffer.split('\n');
-        // Keep the last incomplete line in buffer
         buffer = lines.pop() || '';
 
         for (const line of lines) {
             const trimmed = line.trim()
-            // Skip empty lines and event type lines
             if (!trimmed || trimmed.startsWith('event:') || trimmed.startsWith('id:') || trimmed.startsWith(':')) continue;
 
             if (trimmed.startsWith('data:')) {
                 const dataStr = trimmed.substring(5).trim();
                 if (!dataStr) continue;
                 try {
-                    const data = JSON.parse(dataStr) as ChatStreamResponse;
-                    onChunk(data);
+                    onChunk(JSON.parse(dataStr) as ChatStreamResponse);
                 } catch (e) {
                     console.warn('Failed to parse SSE data:', dataStr);
                 }
@@ -375,13 +364,11 @@ export async function sendVoiceMessageStream(
         }
     }
 
-    // Process any remaining buffer
     if (buffer.trim().startsWith('data:')) {
         const dataStr = buffer.trim().substring(5).trim();
         if (dataStr) {
             try {
-                const data = JSON.parse(dataStr) as ChatStreamResponse;
-                onChunk(data);
+                onChunk(JSON.parse(dataStr) as ChatStreamResponse);
             } catch (e) {
                 console.warn('Failed to parse final SSE data:', dataStr);
             }
@@ -399,6 +386,13 @@ export async function getChatHistory(chatId: number): Promise<ChatDetailResponse
     return apiFetch<ChatDetailResponse[]>(`/api/chats/${chatId}/messages`)
 }
 
+/** 상담 기록 삭제 */
+export async function deleteChat(chatId: number): Promise<void> {
+    return apiFetch<void>(`/api/chats/${chatId}`, {
+        method: 'DELETE',
+    })
+}
+
 /** 분석 결과 업데이트 (신규) */
 export async function updateChatAnalysis(chatId: number, category: string, riskLevel: string): Promise<any> {
     return apiFetch(`/api/chats/${chatId}`, {
@@ -410,9 +404,16 @@ export async function updateChatAnalysis(chatId: number, category: string, riskL
     })
 }
 
-/** 대화 종료하기 */
+/** 대화 종료하기 (요약 저장) */
 export async function closeChat(chatId: number): Promise<void> {
     return apiFetch<void>(`/api/chats/${chatId}/close`, {
+        method: 'POST',
+    })
+}
+
+/** 상담 분석 (카테고리·위험도 판별 후 저장) */
+export async function analyzeChat(chatId: number): Promise<{ category: string; riskLevel: string }> {
+    return apiFetch<{ category: string; riskLevel: string }>(`/api/chats/${chatId}/analyze`, {
         method: 'POST',
     })
 }

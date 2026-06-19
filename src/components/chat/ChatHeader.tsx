@@ -3,8 +3,12 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
-import { removeAccessToken, getChildren, getChatRooms, getChatHistory } from '@/lib/api'
-import { useAppStore, ChatSession } from '@/lib/store'
+import { removeAccessToken } from '@/lib/api'
+import { fetchChatSessions } from '@/lib/chatList'
+import { useAppStore } from '@/lib/store'
+import { ChatListItemMeta } from '@/components/chat/ChatListItemMeta'
+import { useDeleteChat } from '@/hooks/useDeleteChat'
+import { ChatDeleteButton } from '@/components/chat/ChatDeleteButton'
 
 interface ChatHeaderProps {
   onNewChat?: () => void
@@ -19,6 +23,7 @@ export function ChatHeader({ onNewChat }: ChatHeaderProps = {}) {
     setConsultationId, setMessages, clearMessages,
     chatSessions, setChatSessions, historyLoaded, setHistoryLoaded
   } = useAppStore()
+  const { deleteChatById } = useDeleteChat()
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -41,62 +46,17 @@ export function ChatHeader({ onNewChat }: ChatHeaderProps = {}) {
   }
 
   const loadHistory = async (forceRefresh = false) => {
-    // Already loaded and not forced — use cached sessions
     if (historyLoaded && !forceRefresh && chatSessions.length > 0) return
 
-    console.log('[ChatHeader] loadHistory called')
     setLoading(true)
     try {
-      const children = await getChildren()
-      console.log('[ChatHeader] children:', JSON.stringify(children))
-      if (children.length > 0) {
-        let allRooms: ChatSession[] = []
-
-        for (const child of children) {
-          console.log('[ChatHeader] fetching rooms for child:', child.id, child.name)
-          const roomIds = await getChatRooms(child.id)
-          console.log('[ChatHeader] roomIds:', JSON.stringify(roomIds))
-          if (Array.isArray(roomIds)) {
-            const parsedIds = roomIds.map((item: any) =>
-              typeof item === 'object' && item !== null ? (item.chatId || item.id) : item
-            ).map(Number).filter(id => !isNaN(id))
-
-            const sortedIds = [...parsedIds].sort((a, b) => b - a).slice(0, 15)
-
-            for (const id of sortedIds) {
-              let title = `${child.name}의 상담 #${id}`
-              try {
-                const messages = await getChatHistory(id)
-                const firstUserMsg = messages.find(m => m.role === 'USER')
-                if (firstUserMsg) {
-                  title = firstUserMsg.content.length > 25
-                    ? firstUserMsg.content.substring(0, 25) + '...'
-                    : firstUserMsg.content
-                }
-              } catch (e) {
-                console.error(`[ChatHeader] Failed to load title for chat ${id}`, e)
-              }
-
-              allRooms.push({
-                id,
-                title,
-                date: new Date().toLocaleDateString('ko-KR'),
-                childName: child.name,
-              })
-            }
-          }
-        }
-        const sorted = allRooms.sort((a, b) => b.id - a.id)
-        console.log('[ChatHeader] final allRooms:', JSON.stringify(sorted))
-        setChatSessions(sorted)
-        setHistoryLoaded(true)
-      } else {
-        console.log('[ChatHeader] No children found')
-        setChatSessions([])
-        setHistoryLoaded(true)
-      }
+      const sessions = await fetchChatSessions(25)
+      setChatSessions(sessions.slice(0, 15))
+      setHistoryLoaded(true)
     } catch (err) {
       console.error('[ChatHeader] Failed to load history:', err)
+      setChatSessions([])
+      setHistoryLoaded(true)
     } finally {
       setLoading(false)
     }
@@ -237,14 +197,16 @@ export function ChatHeader({ onNewChat }: ChatHeaderProps = {}) {
                     <div className="px-4 py-3 text-[14px] text-[#94A3B8] animate-pulse">로딩 중...</div>
                   ) : chatSessions.length > 0 ? (
                     chatSessions.map((chat) => (
-                      <button
-                        key={chat.id}
-                        onClick={() => handleChatClick(chat.id)}
-                        className="w-full text-left py-3 px-4 rounded-xl hover:bg-[rgba(82,183,136,0.06)] active:scale-[0.98] transition-all group"
-                      >
-                        <div className="truncate text-[14px] font-medium text-[#334155] group-hover:text-[#52B788] transition-colors">{chat.title}</div>
-                        <div className="text-[11px] text-[#94A3B8] mt-0.5">{chat.childName} · {chat.date}</div>
-                      </button>
+                      <div key={chat.id} className="group flex items-center gap-1 pr-1">
+                        <button
+                          type="button"
+                          onClick={() => handleChatClick(chat.id)}
+                          className="min-w-0 flex-1 text-left py-3 px-4 rounded-xl hover:bg-[rgba(82,183,136,0.06)] active:scale-[0.98] transition-all"
+                        >
+                          <ChatListItemMeta chat={chat} titleClassName="text-[14px] font-medium" />
+                        </button>
+                        <ChatDeleteButton chatId={chat.id} onDelete={deleteChatById} />
+                      </div>
                     ))
                   ) : (
                     <div className="px-4 py-3 text-[14px] text-[#94A3B8]">상담 내역이 없습니다.</div>

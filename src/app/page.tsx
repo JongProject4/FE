@@ -1,8 +1,20 @@
 // src/app/page.tsx
 import { redirect } from 'next/navigation'
 
-export default function HomePage() {
-  // 항상 onboarding으로 리다이렉트
-  // 클라이언트에서 JWT 토큰 확인 후 chat으로 이동
+type HomePageProps = {
+  searchParams?: {
+    token?: string
+    jwt?: string
+  }
+}
+
+export default function HomePage({ searchParams }: HomePageProps) {
+  // Backward compatibility:
+  // if backend redirects with /?jwt=... or /?token=..., normalize it.
+  const token = searchParams?.token || searchParams?.jwt
+  if (token) {
+    redirect(`/login-success?token=${encodeURIComponent(token)}`)
+  }
+
   redirect('/login')
 }

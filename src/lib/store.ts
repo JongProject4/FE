@@ -27,6 +27,8 @@ export interface ChatSession {
   title: string
   date: string
   childName: string
+  category?: string
+  riskLevel?: string
 }
 
 interface AppStore {

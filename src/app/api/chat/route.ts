@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic' // Force Vercel to treat this as an API e
 
 
 // Spring Boot backend URL
-const BACKEND_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://aikids.duckdns.org'
+const BACKEND_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080'
 
 /**
  * POST /api/chat

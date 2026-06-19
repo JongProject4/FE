@@ -27,11 +27,11 @@ const nextConfig = {
         return [
             {
                 source: '/api/chat',
-                destination: 'https://aikids.duckdns.org/api/chat',
+                destination: 'http://localhost:8080/api/chat',
             },
             {
                 source: '/api/chat/:path*',
-                destination: 'https://aikids.duckdns.org/api/chat/:path*',
+                destination: 'http://localhost:8080/api/chat/:path*',
             },
         ]
     },

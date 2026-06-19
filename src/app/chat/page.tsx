@@ -11,6 +11,7 @@ import { WelcomeScreen } from '@/components/chat/WelcomeScreen'
 import { QuickChips } from '@/components/chat/QuickChips'
 import { ChildSelectModal } from '@/components/chat/ChildSelectModal'
 import { BottomNav } from '@/components/layout/BottomNav'
+import { saveChatMeta } from '@/lib/chatMetaStorage'
 import toast from 'react-hot-toast'
 
 export default function ChatPage() {
@@ -18,11 +19,12 @@ export default function ChatPage() {
   const {
     messages, consultationId,
     isLoading, addMessage, updateLastMessage, setConsultationId,
-    setLoading, addChatSession,
+    setLoading, addChatSession, setMessages, setHistoryLoaded,
   } = useAppStore()
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const [uploadedImg, setUploadedImg] = useState<string | null>(null)
   const [checking, setChecking] = useState(true)
+  const [closing, setClosing] = useState(false)
 
   // Audio Context for streaming
   const audioCtxRef = useRef<AudioContext | null>(null)
@@ -352,21 +354,58 @@ export default function ChatPage() {
           )}
           {consultationId && (
             <button
+              disabled={closing}
               onClick={async () => {
-                if (confirm('대화를 종료하시겠습니까?')) {
+                if (!confirm('대화를 종료하시겠습니까?')) return
+
+                setClosing(true)
+                const toastId = toast.loading('대화를 종료하는 중...')
+                const chatId = Number(consultationId)
+
+                try {
+                  const { closeChat, analyzeChat } = await import('@/lib/api')
+                  await closeChat(chatId)
+
+                  let category = 'ANALYZING'
+                  let riskLevel = 'ANALYZING'
                   try {
-                    const { closeChat } = await import('@/lib/api')
-                    await closeChat(Number(consultationId))
-                    toast.success('대화가 종료되었습니다.')
-                    router.push('/chats')
-                  } catch (err) {
-                    toast.error('대화 종료에 실패했습니다.')
+                    const analysis = await analyzeChat(chatId)
+                    category = analysis.category
+                    riskLevel = analysis.riskLevel
+                  } catch (analyzeErr) {
+                    console.warn('Chat analysis failed after close:', analyzeErr)
                   }
+
+                  const firstUserMsg = messages.find((m) => m.role === 'user')
+                  const title = firstUserMsg?.content?.trim()
+                    ? (firstUserMsg.content.length > 30
+                      ? `${firstUserMsg.content.slice(0, 30)}...`
+                      : firstUserMsg.content)
+                    : `상담 #${chatId}`
+
+                  saveChatMeta(chatId, {
+                    category,
+                    riskLevel,
+                    title,
+                    childName: activeChild?.name,
+                    date: new Date().toLocaleDateString('ko-KR'),
+                  })
+
+                  setConsultationId(null)
+                  setMessages([])
+                  setHistoryLoaded(false)
+                  toast.success('대화가 종료되었습니다.', { id: toastId })
+                  router.push('/chats')
+                } catch (err) {
+                  console.error('Close chat failed:', err)
+                  toast.error('대화 종료에 실패했습니다.', { id: toastId })
+                } finally {
+                  setClosing(false)
                 }
               }}
-              className="text-[11px] text-white bg-[#FF5A5A] hover:bg-[#FF3B3B] px-3 py-1.5 rounded-full transition-colors font-bold ml-auto"
+              className="text-[11px] text-white bg-[#FF5A5A] hover:bg-[#FF3B3B] disabled:opacity-60 px-3 py-1.5 rounded-full transition-colors font-bold ml-auto"
             >
-              대화 종료하기
+              {closing ? '종료 중...' : '대화 종료하기'}
             </button>
           )}
         </div>
