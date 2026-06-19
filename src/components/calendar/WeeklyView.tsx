@@ -1,8 +1,10 @@
 'use client'
 // src/components/calendar/WeeklyView.tsx
 import { useMemo } from 'react'
-import { CalendarEvent } from './types'
-import { dateKey, isToday } from './utils'
+import type { CalendarEvent, ClinicRecord } from './types'
+import { EventDots } from './EventDots'
+import { dateKey, isToday, formatVisitTimeLabel } from './utils'
+import { getChildColor } from '@/lib/childColors'
 
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토']
 
@@ -13,13 +15,17 @@ interface Props {
     onDayClick: (date: Date) => void
     onPrevWeek: () => void
     onNextWeek: () => void
-    weekOffset: number // 0 = current week, ±1, ±2 ...
+    weekOffset: number
 }
 
-export function WeeklyView({ year, month, events, onDayClick, onPrevWeek, onNextWeek, weekOffset }: Props) {
+function formatVisitTime(visitDate: string): string {
+    return formatVisitTimeLabel(visitDate)
+}
+
+export function WeeklyView({ events, onDayClick, onPrevWeek, onNextWeek, weekOffset }: Props) {
     const weekDays = useMemo(() => {
         const today = new Date()
-        const dayOfWeek = today.getDay() // 0=Sun
+        const dayOfWeek = today.getDay()
         const sunday = new Date(today)
         sunday.setDate(today.getDate() - dayOfWeek + weekOffset * 7)
 
@@ -43,9 +49,15 @@ export function WeeklyView({ year, month, events, onDayClick, onPrevWeek, onNext
         return `${sy}년 ${sm}월 ${sd}일 - ${em}월 ${ed}일`
     }
 
+    const weekSchedule = weekDays.flatMap((date) => {
+        const key = dateKey(date)
+        return (events[key] || [])
+            .filter((ev) => ev.type === 'consultation' || ev.type === 'clinic')
+            .map((ev) => ({ date, ev }))
+    })
+
     return (
         <div className="flex flex-col bg-white rounded-3xl shadow-xl overflow-hidden pb-4">
-            {/* Header nav */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-[rgba(82,183,136,0.12)]">
                 <button
                     onClick={onPrevWeek}
@@ -66,7 +78,6 @@ export function WeeklyView({ year, month, events, onDayClick, onPrevWeek, onNext
                 </button>
             </div>
 
-            {/* Weekday headers */}
             <div className="grid grid-cols-7 px-3 pt-2 pb-1">
                 {WEEKDAYS.map((day, i) => (
                     <div
@@ -79,14 +90,12 @@ export function WeeklyView({ year, month, events, onDayClick, onPrevWeek, onNext
                 ))}
             </div>
 
-            {/* Day cells (1 row, 7 cols) */}
             <div className="grid grid-cols-7 gap-[2px] px-3 pb-3">
                 {weekDays.map((date, idx) => {
                     const key = dateKey(date)
                     const dayEvents = events[key] || []
-                    const consultations = dayEvents.filter(e => e.type === 'consultation')
-                    const hasClinic = dayEvents.some(e => e.type === 'clinic')
-                    const hasMed = dayEvents.some(e => e.type === 'med')
+                    const consultations = dayEvents.filter((e) => e.type === 'consultation')
+                    const clinics = dayEvents.filter((e) => e.type === 'clinic')
                     const todayFlag = isToday(date)
                     const dow = date.getDay()
 
@@ -94,7 +103,7 @@ export function WeeklyView({ year, month, events, onDayClick, onPrevWeek, onNext
                         <button
                             key={idx}
                             onClick={() => onDayClick(date)}
-                            className="min-h-[68px] rounded-[8px] p-1 flex flex-col items-center justify-start pt-1 hover:bg-[rgba(82,183,136,0.08)] active:scale-95 cursor-pointer transition-colors"
+                            className="min-h-[56px] rounded-[8px] p-1 flex flex-col items-center justify-start pt-1 hover:bg-[rgba(82,183,136,0.08)] active:scale-95 cursor-pointer transition-colors"
                         >
                             <div
                                 className={`w-7 h-7 flex items-center justify-center text-[13px] leading-none shrink-0 ${todayFlag
@@ -109,79 +118,64 @@ export function WeeklyView({ year, month, events, onDayClick, onPrevWeek, onNext
                                 {date.getDate()}
                             </div>
 
-                            {consultations.length > 0 && (
-                                <div className="mt-1 flex flex-col items-center gap-[2px]">
-                                    <span className="inline-flex items-center gap-0.5 text-[8px] font-bold px-1.5 py-[2px] rounded-md text-white bg-[#8B5CF6]">
-                                        상담
-                                    </span>
-                                    {consultations.length > 1 && (
-                                        <span className="text-[8px] text-[#94A3B8]">+{consultations.length - 1}</span>
-                                    )}
-                                </div>
-                            )}
-
-                            <div className="mt-auto pt-1 flex gap-[3px]">
-                                {hasClinic && <div className="w-[5px] h-[5px] rounded-full bg-[#E24B4A]" />}
-                                {hasMed && <div className="w-[5px] h-[5px] rounded-full bg-[#52B788]" />}
-                            </div>
+                            <EventDots
+                                consultationChildIds={consultations.map((e) => e.childId || e.childName)}
+                                clinicCount={clinics.length}
+                            />
                         </button>
                     )
                 })}
             </div>
 
-            {/* Weekly schedule list */}
             <div className="px-4 pt-2 border-t border-[rgba(82,183,136,0.08)]">
                 <p className="text-[11px] font-semibold text-[#94A3B8] mb-2">이번 주 일정</p>
-                {weekDays.flatMap(date => {
-                    const key = dateKey(date)
-                    return (events[key] || []).map(ev => ({ date, ev }))
-                }).length === 0 ? (
+                {weekSchedule.length === 0 ? (
                     <p className="text-[12px] text-[#CBD5E1] text-center py-3">이번 주 등록된 일정이 없습니다</p>
                 ) : (
                     <div className="flex flex-col gap-2">
-                        {weekDays.flatMap(date => {
-                            const key = dateKey(date)
-                            return (events[key] || []).map(ev => ({ date, ev }))
-                        }).map(({ date, ev }, idx) => (
-                            <div
-                                key={idx}
-                                className={`flex items-center gap-3 p-2 rounded-xl ${ev.type === 'consultation'
-                                    ? 'bg-[rgba(139,92,246,0.08)] border-l-[3px] border-[#8B5CF6]'
-                                    : ev.type === 'clinic'
-                                    ? 'bg-[rgba(226,75,74,0.08)] border-l-[3px] border-[#E24B4A]'
-                                    : 'bg-[rgba(82,183,136,0.08)] border-l-[3px] border-[#52B788]'
-                                    }`}
-                            >
-                                <div className="flex flex-col items-center min-w-[28px]">
-                                    <span className="text-[10px] font-semibold text-[#94A3B8]">{WEEKDAYS[date.getDay()]}</span>
-                                    <span className="text-[13px] font-bold text-[#334155]">{date.getDate()}</span>
+                        {weekSchedule.map(({ date, ev }, idx) => {
+                            const clinic = ev.type === 'clinic' ? (ev as ClinicRecord) : null
+                            return (
+                                <div
+                                    key={idx}
+                                    className={`flex items-center gap-3 p-2 rounded-xl ${ev.type === 'consultation'
+                                        ? 'border-l-[3px]'
+                                        : 'bg-[rgba(226,75,74,0.08)] border-l-[3px] border-[#E24B4A]'
+                                        }`}
+                                    style={ev.type === 'consultation'
+                                        ? {
+                                            backgroundColor: getChildColor(ev.childId || ev.childName).bg,
+                                            borderLeftColor: getChildColor(ev.childId || ev.childName).border,
+                                        }
+                                        : undefined}
+                                >
+                                    <div className="flex flex-col items-center min-w-[28px]">
+                                        <span className="text-[10px] font-semibold text-[#94A3B8]">{WEEKDAYS[date.getDay()]}</span>
+                                        <span className="text-[13px] font-bold text-[#334155]">{date.getDate()}</span>
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-[12px] font-semibold text-[#334155] truncate">
+                                            {ev.type === 'consultation' ? 'AI 상담' : clinic?.hospitalName}
+                                        </p>
+                                        <p className="text-[11px] text-[#64748B] truncate">
+                                            {ev.type === 'consultation'
+                                                ? `💬 ${ev.childName}`
+                                                : `🏥 ${formatVisitTime(clinic?.visitDate || '')} · ${ev.childName}`}
+                                        </p>
+                                    </div>
+                                    <span className={`text-[10px] px-2 py-[2px] rounded-full font-medium ${ev.type === 'consultation'
+                                        ? 'text-white'
+                                        : 'bg-[#E24B4A] text-white'
+                                        }`}
+                                        style={ev.type === 'consultation'
+                                            ? { backgroundColor: getChildColor(ev.childId || ev.childName).dot }
+                                            : undefined}
+                                    >
+                                        {ev.type === 'consultation' ? '상담' : '내원'}
+                                    </span>
                                 </div>
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-[12px] font-semibold text-[#334155] truncate">
-                                        {ev.type === 'consultation'
-                                            ? 'AI 상담'
-                                            : ev.type === 'clinic'
-                                                ? (ev as { hospital: string }).hospital
-                                                : (ev as { medName: string }).medName}
-                                    </p>
-                                    <p className="text-[11px] text-[#64748B] truncate">
-                                        {ev.type === 'consultation'
-                                            ? `💬 ${(ev as { childName: string }).childName}`
-                                            : ev.type === 'clinic'
-                                                ? `🏥 내원 기록 · ${(ev as { diagnosis?: string }).diagnosis || ''}`
-                                                : '💊 복약 기록'}
-                                    </p>
-                                </div>
-                                <span className={`text-[10px] px-2 py-[2px] rounded-full font-medium ${ev.type === 'consultation'
-                                    ? 'bg-[#8B5CF6] text-white'
-                                    : ev.type === 'clinic'
-                                    ? 'bg-[#E24B4A] text-white'
-                                    : 'bg-[#52B788] text-white'
-                                    }`}>
-                                    {ev.type === 'consultation' ? '상담' : ev.type === 'clinic' ? '내원' : '복약'}
-                                </span>
-                            </div>
-                        ))}
+                            )
+                        })}
                     </div>
                 )}
             </div>

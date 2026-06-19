@@ -20,19 +20,13 @@ export interface ClinicRecord {
   type: 'clinic'
   childId: string
   childName: string
-  hospital: string
-  diagnosis: string
-  hasNextVisit: boolean
-  nextVisitDate?: string      // ISO date string
-  medications: MedEntry[]
-  date: string                // YYYY-MM-DD
+  hospitalName: string
+  visitDate: string
+  memo: string
+  isActive: boolean
+  date: string
   createdAt: string
-}
-
-export interface MedEntry {
-  name: string
-  startDate: string
-  endDate: string
+  alarmId: number
 }
 
 export interface MedRecord {

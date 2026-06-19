@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useAppStore } from '@/lib/store'
 import { fetchChatSessions } from '@/lib/chatList'
 import { getCategoryLabel, getRiskLabel } from '@/lib/chatLabels'
+import { getChildColor } from '@/lib/childColors'
 import { ChatListItemMeta } from '@/components/chat/ChatListItemMeta'
 import { useDeleteChat } from '@/hooks/useDeleteChat'
 import { ChatDeleteButton } from '@/components/chat/ChatDeleteButton'
@@ -104,7 +105,9 @@ export default function ChatsPage() {
                         <p className="text-[14px] text-[#94A3B8]">상담 기록을 불러오는 중...</p>
                     </div>
                 ) : filteredChats.length > 0 ? (
-                    filteredChats.map((chat) => (
+                    filteredChats.map((chat) => {
+                        const childColor = getChildColor(chat.childId || chat.childName)
+                        return (
                         <div
                             key={chat.id}
                             className="group mb-1 flex items-center gap-1 rounded-2xl hover:bg-[rgba(82,183,136,0.06)] transition-all"
@@ -116,7 +119,8 @@ export default function ChatsPage() {
                                     setMessages([])
                                     router.push('/chat')
                                 }}
-                                className="min-w-0 flex-1 text-left px-4 py-3.5 active:scale-[0.98] transition-all"
+                                className="min-w-0 flex-1 text-left px-4 py-3.5 active:scale-[0.98] transition-all border-l-[3px] rounded-2xl"
+                                style={{ borderLeftColor: childColor.border }}
                             >
                                 <ChatListItemMeta chat={chat} titleClassName="text-[16px] font-bold mb-1" />
                             </button>
@@ -126,7 +130,7 @@ export default function ChatsPage() {
                                 className="mr-2"
                             />
                         </div>
-                    ))
+                    )})
                 ) : (
                     <div className="py-10 text-center text-[#94A3B8] font-medium text-[14px]">
                         {search ? '검색 결과가 없습니다.' : '상담 내역이 없습니다.'}

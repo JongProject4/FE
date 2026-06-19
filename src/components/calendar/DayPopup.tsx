@@ -1,9 +1,10 @@
 'use client'
 // src/components/calendar/DayPopup.tsx
 import { useRouter } from 'next/navigation'
-import { CalendarEvent, ClinicRecord, MedRecord, ConsultationRecord } from './types'
-import { formatDateLabel } from './utils'
+import { CalendarEvent, ClinicRecord, ConsultationRecord } from './types'
+import { formatDateLabel, formatVisitTimeLabel } from './utils'
 import { getCategoryLabel, getRiskLabel } from '@/lib/chatLabels'
+import { getChildColor } from '@/lib/childColors'
 import { useAppStore } from '@/lib/store'
 
 interface Props {
@@ -11,13 +12,14 @@ interface Props {
   events: CalendarEvent[]
   onClose: () => void
   onAddClinic: () => void
-  onAddMed: () => void
   onRemove: (id: string) => void
 }
+
 
 function ConsultationItem({ event }: { event: ConsultationRecord }) {
   const router = useRouter()
   const { setConsultationId, setMessages } = useAppStore()
+  const childColor = getChildColor(event.childId || event.childName)
 
   const openChat = () => {
     setConsultationId(String(event.chatId))
@@ -31,14 +33,19 @@ function ConsultationItem({ event }: { event: ConsultationRecord }) {
       onClick={openChat}
       className="flex items-start gap-3 py-3 w-full text-left hover:bg-[rgba(139,92,246,0.04)] rounded-xl px-1 -mx-1 transition-colors"
     >
-      <div className="w-2 h-2 rounded-full bg-[#8B5CF6] mt-2 flex-shrink-0" />
+      <div className="w-2 h-2 rounded-full mt-2 flex-shrink-0" style={{ backgroundColor: childColor.dot }} />
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-1">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8B5CF6" strokeWidth="2" className="shrink-0">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={childColor.dot} strokeWidth="2" className="shrink-0">
             <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />
           </svg>
           <span className="text-[14px] font-semibold text-[#334155] truncate">AI 상담</span>
-          <span className="px-2 py-0.5 bg-[#EDE9FE] text-[#7C3AED] text-[10px] font-semibold rounded-full flex-shrink-0">상담</span>
+          <span
+            className="px-2 py-0.5 text-[10px] font-semibold rounded-full flex-shrink-0"
+            style={{ backgroundColor: childColor.bg, color: childColor.text }}
+          >
+            {event.childName}
+          </span>
         </div>
         <div className="flex flex-wrap items-center gap-1.5 mb-1">
           <span className="rounded-full bg-[#F1F5F9] px-2 py-0.5 text-[10px] font-semibold text-[#94A3B8]">
@@ -48,52 +55,39 @@ function ConsultationItem({ event }: { event: ConsultationRecord }) {
             {getRiskLabel(event.riskLevel)}
           </span>
         </div>
-        <div className="text-[12px] text-[#94A3B8] truncate">{event.childName}</div>
-        {event.title && event.title !== 'AI 상담' && (
-          <div className="text-[11px] text-[#64748B] mt-0.5 truncate">{event.title}</div>
-        )}
+        <div className="text-[12px] text-[#94A3B8] truncate">{event.title}</div>
       </div>
     </button>
   )
 }
 
-function ClinicItem({ event }: { event: ClinicRecord }) {
+function ClinicItem({ event, onRemove }: { event: ClinicRecord; onRemove: (id: string) => void }) {
   return (
     <div className="flex items-start gap-3 py-3">
       <div className="w-2 h-2 rounded-full bg-[#E24B4A] mt-1.5 flex-shrink-0" />
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-0.5">
-          <span className="text-[14px] font-medium text-[#334155] truncate">{event.hospital}</span>
+          <span className="text-[14px] font-medium text-[#334155] truncate">{event.hospitalName}</span>
           <span className="px-2 py-0.5 bg-[rgba(226,75,74,0.12)] text-[#E24B4A] text-[10px] font-semibold rounded-full flex-shrink-0">내원</span>
         </div>
-        <div className="text-[12px] text-[#475569]">{event.diagnosis}</div>
+        <div className="text-[12px] text-[#475569]">{formatVisitTimeLabel(event.visitDate)}</div>
+        {event.memo && <div className="text-[12px] text-[#64748B] mt-0.5 truncate">{event.memo}</div>}
         <div className="text-[11px] text-[#94A3B8] mt-0.5">{event.childName}</div>
       </div>
+      <button
+        type="button"
+        onClick={() => onRemove(event.id)}
+        className="text-[11px] text-[#94A3B8] hover:text-[#EF4444] shrink-0 pt-1"
+      >
+        삭제
+      </button>
     </div>
   )
 }
 
-function MedItem({ event }: { event: MedRecord }) {
-  return (
-    <div className="flex items-start gap-3 py-3">
-      <div className="w-2 h-2 rounded-full bg-[#52B788] mt-1.5 flex-shrink-0" />
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-0.5">
-          <span className="text-[14px] font-medium text-[#334155] truncate">{event.medName}</span>
-          <span className="px-2 py-0.5 bg-[#F4FCFB] text-[#40916C] text-[10px] font-semibold rounded-full flex-shrink-0 border border-[rgba(82,183,136,0.12)]">복약</span>
-        </div>
-        <div className="text-[12px] text-[#475569]">
-          {event.startDate} ~ {event.endDate}
-        </div>
-        <div className="text-[11px] text-[#94A3B8] mt-0.5">{event.childName}</div>
-      </div>
-    </div>
-  )
-}
-
-export function DayPopup({ date, events, onClose, onAddClinic, onAddMed }: Props) {
+export function DayPopup({ date, events, onClose, onAddClinic, onRemove }: Props) {
   const consultations = events.filter((e): e is ConsultationRecord => e.type === 'consultation')
-  const others = events.filter(e => e.type !== 'consultation')
+  const clinics = events.filter((e): e is ClinicRecord => e.type === 'clinic')
 
   return (
     <div className="bg-white rounded-3xl shadow-2xl border border-[rgba(82,183,136,0.15)] overflow-hidden w-full max-w-[390px]">
@@ -119,33 +113,22 @@ export function DayPopup({ date, events, onClose, onAddClinic, onAddMed }: Props
             {consultations.map((event) => (
               <ConsultationItem key={event.id} event={event} />
             ))}
-            {others.map((event) =>
-              event.type === 'clinic'
-                ? <ClinicItem key={event.id} event={event as ClinicRecord} />
-                : <MedItem key={event.id} event={event as MedRecord} />
-            )}
+            {clinics.map((event) => (
+              <ClinicItem key={event.id} event={event} onRemove={onRemove} />
+            ))}
           </>
         )}
       </div>
 
-      <div className="flex gap-2 px-4 py-3 border-t border-[rgba(82,183,136,0.1)]">
+      <div className="px-4 py-3 border-t border-[rgba(82,183,136,0.1)]">
         <button
           onClick={onAddClinic}
-          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-dashed border-[rgba(82,183,136,0.3)] text-[12px] font-medium text-[#475569] hover:bg-[rgba(82,183,136,0.05)] hover:text-[#52B788] hover:border-[#52B788] transition-all"
+          className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-dashed border-[rgba(82,183,136,0.3)] text-[12px] font-medium text-[#475569] hover:bg-[rgba(82,183,136,0.05)] hover:text-[#52B788] hover:border-[#52B788] transition-all"
         >
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
             <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
           </svg>
-          내원 기록
-        </button>
-        <button
-          onClick={onAddMed}
-          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-dashed border-[rgba(82,183,136,0.3)] text-[12px] font-medium text-[#475569] hover:bg-[rgba(82,183,136,0.05)] hover:text-[#52B788] hover:border-[#52B788] transition-all"
-        >
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-            <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
-          복약 기록
+          내원 알림 추가
         </button>
       </div>
     </div>

@@ -26,6 +26,7 @@ export interface ChatSession {
   id: number
   title: string
   date: string
+  childId: string
   childName: string
   category?: string
   riskLevel?: string

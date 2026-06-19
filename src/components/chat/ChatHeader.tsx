@@ -9,6 +9,7 @@ import { useAppStore } from '@/lib/store'
 import { ChatListItemMeta } from '@/components/chat/ChatListItemMeta'
 import { useDeleteChat } from '@/hooks/useDeleteChat'
 import { ChatDeleteButton } from '@/components/chat/ChatDeleteButton'
+import { getChildColor } from '@/lib/childColors'
 
 interface ChatHeaderProps {
   onNewChat?: () => void
@@ -196,18 +197,21 @@ export function ChatHeader({ onNewChat }: ChatHeaderProps = {}) {
                   {loading ? (
                     <div className="px-4 py-3 text-[14px] text-[#94A3B8] animate-pulse">로딩 중...</div>
                   ) : chatSessions.length > 0 ? (
-                    chatSessions.map((chat) => (
+                    chatSessions.map((chat) => {
+                      const childColor = getChildColor(chat.childId || chat.childName)
+                      return (
                       <div key={chat.id} className="group flex items-center gap-1 pr-1">
                         <button
                           type="button"
                           onClick={() => handleChatClick(chat.id)}
-                          className="min-w-0 flex-1 text-left py-3 px-4 rounded-xl hover:bg-[rgba(82,183,136,0.06)] active:scale-[0.98] transition-all"
+                          className="min-w-0 flex-1 text-left py-3 px-4 rounded-xl hover:bg-[rgba(82,183,136,0.06)] active:scale-[0.98] transition-all border-l-[3px]"
+                          style={{ borderLeftColor: childColor.border }}
                         >
                           <ChatListItemMeta chat={chat} titleClassName="text-[14px] font-medium" />
                         </button>
                         <ChatDeleteButton chatId={chat.id} onDelete={deleteChatById} />
                       </div>
-                    ))
+                    )})
                   ) : (
                     <div className="px-4 py-3 text-[14px] text-[#94A3B8]">상담 내역이 없습니다.</div>
                   )}

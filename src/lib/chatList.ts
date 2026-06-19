@@ -69,6 +69,7 @@ export async function fetchChatSessions(titleMaxLength = 30): Promise<ChatSessio
                 id,
                 title,
                 date,
+                childId: String(child.id),
                 childName: child.name,
                 category: stored?.category ?? 'ANALYZING',
                 riskLevel: stored?.riskLevel ?? 'ANALYZING',

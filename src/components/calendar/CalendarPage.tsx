@@ -1,22 +1,51 @@
 'use client'
 // src/components/calendar/CalendarPage.tsx
-// ✅ 메인 캘린더 페이지 - 모든 뷰를 조율합니다
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { CalendarGrid } from './CalendarGrid'
 import { WeeklyView } from './WeeklyView'
 import { DayPopup } from './DayPopup'
-import { ClinicForm } from './ClinicForm'
-import { MedForm } from './MedForm'
+import { ClinicForm, type ClinicFormSavePayload } from './ClinicForm'
+import { MedForm, type MedFormSavePayload } from './MedForm'
+import { MedicationAlarmPanel, type MedicationAlarmWithChild } from './MedicationAlarmPanel'
 import { useCalendarStore } from './store'
-import { ClinicRecord, MedRecord, Child, DayEvents, CalendarEvent } from './types'
-import { dateKey, calcAge } from './utils'
+import { ClinicRecord, Child } from './types'
+import { calcAge } from './utils'
 import { BottomNav } from '@/components/layout/BottomNav'
+import {
+  createHospitalAlarm,
+  createMedicationAlarm,
+  deleteHospitalAlarm,
+  deleteMedicationAlarm,
+  getChildren,
+  getMedicationAlarms,
+} from '@/lib/api'
+import {
+  fetchHospitalCalendarEvents,
+  mergeHospitalEvents,
+  stripMedEvents,
+} from '@/lib/hospitalCalendar'
+import { fetchConsultationCalendarEvents, mergeConsultationEvents } from '@/lib/chatCalendar'
 
-type View = 'calendar' | 'day' | 'clinic-form' | 'med-form' | 'success'
+type View = 'calendar' | 'clinic-form' | 'med-form' | 'success'
 type CalendarMode = 'monthly' | 'weekly'
 
 interface Props {
   initialChildren?: Child[]
+}
+
+async function loadMedicationAlarmsForChildren(childList: Child[]): Promise<MedicationAlarmWithChild[]> {
+  const all: MedicationAlarmWithChild[] = []
+  for (const child of childList) {
+    try {
+      const alarms = await getMedicationAlarms(Number(child.id))
+      for (const alarm of alarms) {
+        all.push({ ...alarm, childName: child.name })
+      }
+    } catch (e) {
+      console.error(`Failed to load medication alarms for child ${child.id}`, e)
+    }
+  }
+  return all
 }
 
 export function CalendarPage({ initialChildren }: Props) {
@@ -28,70 +57,46 @@ export function CalendarPage({ initialChildren }: Props) {
   const [view, setView] = useState<View>('calendar')
   const [successMsg, setSuccessMsg] = useState({ title: '', sub: '' })
   const [children, setChildren] = useState<Child[]>(initialChildren || [])
+  const [medicationAlarms, setMedicationAlarms] = useState<MedicationAlarmWithChild[]>([])
   const [loading, setLoading] = useState(!initialChildren)
+  const [saving, setSaving] = useState(false)
   const [calendarMode, setCalendarMode] = useState<CalendarMode>('monthly')
   const [weekOffset, setWeekOffset] = useState(0)
 
-  const { events, addEvent, removeEvent, getEventsForDate, setEvents } = useCalendarStore()
+  const { events, removeEvent, getEventsForDate, setEvents } = useCalendarStore()
 
-  // 1. 아이 목록 및 건강 기록 로드
+  const reloadCalendarEvents = useCallback(async (childList: Child[]) => {
+    const [consultationEvents, hospitalEvents] = await Promise.all([
+      fetchConsultationCalendarEvents(),
+      fetchHospitalCalendarEvents(childList),
+    ])
+    setEvents((prev) =>
+      mergeHospitalEvents(
+        mergeConsultationEvents(stripMedEvents(prev), consultationEvents),
+        hospitalEvents
+      )
+    )
+  }, [setEvents])
+
   useEffect(() => {
     const loadData = async () => {
       try {
-        const { getChildren, getHealthLogs } = await import('@/lib/api')
         const childrenData = await getChildren()
-
-        const mappedChildren: Child[] = childrenData.map(c => ({
+        const mappedChildren: Child[] = childrenData.map((c) => ({
           id: String(c.id),
           name: c.name,
           age: c.birthdate ? calcAge(c.birthdate) : 'N/A',
-          gender: c.gender
+          gender: c.gender,
         }))
         setChildren(mappedChildren)
 
         if (mappedChildren.length > 0) {
-          const logs = await getHealthLogs(Number(mappedChildren[0].id))
-
-          const newEvents: DayEvents = {}
-          logs.forEach(log => {
-            const dateObj = new Date(log.eventDate)
-            const key = dateKey(dateObj)
-
-            const event: CalendarEvent = log.logType === 'MEDICATION' ? {
-              id: String(log.id),
-              type: 'med',
-              childId: String(log.childId),
-              childName: mappedChildren.find(c => c.id === String(log.childId))?.name || '',
-              medName: log.content,
-              startDate: log.eventDate,
-              endDate: log.eventDate,
-              times: [],
-              dosage: '',
-              alarmEnabled: false,
-              date: key,
-              createdAt: log.eventDate
-            } : {
-              id: String(log.id),
-              type: 'clinic',
-              childId: String(log.childId),
-              childName: mappedChildren.find(c => c.id === String(log.childId))?.name || '',
-              hospital: log.logType === 'HOSPITAL' ? log.content : '상담 기록',
-              diagnosis: log.logType === 'CONSULTATION' ? log.content : '',
-              hasNextVisit: false,
-              medications: [],
-              date: key,
-              createdAt: log.eventDate
-            }
-
-            if (!newEvents[key]) newEvents[key] = []
-            newEvents[key].push(event)
-          })
-          setEvents((prevEvents) => ({ ...prevEvents, ...newEvents }))
+          const [medAlarms] = await Promise.all([
+            loadMedicationAlarmsForChildren(mappedChildren),
+            reloadCalendarEvents(mappedChildren),
+          ])
+          setMedicationAlarms(medAlarms)
         }
-
-        const { fetchConsultationCalendarEvents, mergeConsultationEvents } = await import('@/lib/chatCalendar')
-        const consultationEvents = await fetchConsultationCalendarEvents()
-        setEvents((prev) => mergeConsultationEvents(prev, consultationEvents))
       } catch (err) {
         console.error('Failed to load calendar data', err)
       } finally {
@@ -99,7 +104,7 @@ export function CalendarPage({ initialChildren }: Props) {
       }
     }
     loadData()
-  }, [setEvents])
+  }, [reloadCalendarEvents])
 
   const handleDayClick = (date: Date) => {
     setSelectedDate(date)
@@ -107,51 +112,101 @@ export function CalendarPage({ initialChildren }: Props) {
   }
 
   const handlePrevMonth = () => {
-    if (month === 0) { setYear(y => y - 1); setMonth(11) }
-    else setMonth(m => m - 1)
+    if (month === 0) { setYear((y) => y - 1); setMonth(11) }
+    else setMonth((m) => m - 1)
   }
 
   const handleNextMonth = () => {
-    if (month === 11) { setYear(y => y + 1); setMonth(0) }
-    else setMonth(m => m + 1)
+    if (month === 11) { setYear((y) => y + 1); setMonth(0) }
+    else setMonth((m) => m + 1)
   }
 
-  const handleSaveClinic = (record: ClinicRecord) => {
-    addEvent(record)
-    setSuccessMsg({
-      title: '내원 기록이 저장되었습니다!',
-      sub: `${record.hospital} · ${record.diagnosis}`,
-    })
-    setView('success')
+  const handleSaveClinic = async (payload: ClinicFormSavePayload) => {
+    setSaving(true)
+    try {
+      await createHospitalAlarm(Number(payload.childId), payload.request)
+      await reloadCalendarEvents(children)
+      setSuccessMsg({
+        title: '내원 알림이 저장되었습니다!',
+        sub: payload.request.hospitalName,
+      })
+      setView('success')
+    } catch (err) {
+      console.error('Failed to save hospital alarm', err)
+      alert('내원 알림 저장에 실패했습니다.')
+    } finally {
+      setSaving(false)
+    }
   }
 
-  const handleSaveMed = (record: MedRecord) => {
-    addEvent(record)
-    setSuccessMsg({
-      title: '복약 기록이 저장되었습니다!',
-      sub: `${record.medName}${record.alarmEnabled ? ' · 알림 설정됨' : ''}`,
-    })
-    setView('success')
+  const handleSaveMed = async (payload: MedFormSavePayload) => {
+    setSaving(true)
+    try {
+      await createMedicationAlarm(Number(payload.childId), payload.request)
+      const medAlarms = await loadMedicationAlarmsForChildren(children)
+      setMedicationAlarms(medAlarms)
+      setSuccessMsg({
+        title: '복약 알림이 저장되었습니다!',
+        sub: `${payload.request.medicineName} · ${payload.request.dosage}`,
+      })
+      setView('success')
+    } catch (err) {
+      console.error('Failed to save medication alarm', err)
+      alert('복약 알림 저장에 실패했습니다.')
+    } finally {
+      setSaving(false)
+    }
   }
 
-  const handleRemoveEvent = (id: string) => {
-    if (selectedDate) removeEvent(selectedDate, id)
+  const handleRemoveEvent = async (id: string) => {
+    if (!selectedDate) return
+    const event = dayEvents.find((e) => e.id === id)
+    if (event?.type === 'clinic') {
+      const clinic = event as ClinicRecord
+      try {
+        await deleteHospitalAlarm(Number(clinic.childId), clinic.alarmId)
+        await reloadCalendarEvents(children)
+      } catch (err) {
+        console.error('Failed to delete hospital alarm', err)
+        alert('삭제에 실패했습니다.')
+        return
+      }
+    } else {
+      removeEvent(selectedDate, id)
+    }
+  }
+
+  const handleDeleteMedication = async (childId: number, alarmId: number) => {
+    try {
+      await deleteMedicationAlarm(childId, alarmId)
+      const medAlarms = await loadMedicationAlarmsForChildren(children)
+      setMedicationAlarms(medAlarms)
+    } catch (err) {
+      console.error('Failed to delete medication alarm', err)
+      alert('삭제에 실패했습니다.')
+    }
   }
 
   const dayEvents = selectedDate ? getEventsForDate(selectedDate) : []
 
+  if (loading) {
+    return (
+      <div className="flex flex-col h-dvh max-w-[430px] mx-auto bg-[#F4FCFB] items-center justify-center">
+        <p className="text-[14px] text-[#94A3B8]">캘린더 불러오는 중...</p>
+        <BottomNav />
+      </div>
+    )
+  }
+
   return (
     <div className="flex flex-col h-dvh max-w-[430px] mx-auto bg-[#F4FCFB] overflow-hidden">
 
-      {/* ── 캘린더 뷰 ── */}
       {view === 'calendar' && (
         <div className="flex-1 overflow-y-auto px-5 pt-6 pb-6 mt-2 relative">
-          {/* Header with toggle */}
-          <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center justify-between mb-4">
             <h1 className="text-[24px] font-black tracking-tight text-[#334155]">
               캘린더
             </h1>
-            {/* Monthly / Weekly toggle button */}
             <div className="flex items-center bg-white rounded-full shadow-sm border border-[rgba(82,183,136,0.2)] p-[3px]">
               <button
                 onClick={() => setCalendarMode('monthly')}
@@ -174,7 +229,12 @@ export function CalendarPage({ initialChildren }: Props) {
             </div>
           </div>
 
-          {/* Monthly view */}
+          <MedicationAlarmPanel
+            alarms={medicationAlarms}
+            onAdd={() => setView('med-form')}
+            onDelete={handleDeleteMedication}
+          />
+
           {calendarMode === 'monthly' && (
             <CalendarGrid
               year={year}
@@ -186,19 +246,17 @@ export function CalendarPage({ initialChildren }: Props) {
             />
           )}
 
-          {/* Weekly view */}
           {calendarMode === 'weekly' && (
             <WeeklyView
               year={year}
               month={month}
               events={events}
               onDayClick={handleDayClick}
-              onPrevWeek={() => setWeekOffset(w => w - 1)}
-              onNextWeek={() => setWeekOffset(w => w + 1)}
+              onPrevWeek={() => setWeekOffset((w) => w - 1)}
+              onNextWeek={() => setWeekOffset((w) => w + 1)}
               weekOffset={weekOffset}
             />
           )}
-
         </div>
       )}
 
@@ -214,34 +272,31 @@ export function CalendarPage({ initialChildren }: Props) {
               events={dayEvents}
               onClose={() => setShowDayPopup(false)}
               onAddClinic={() => { setShowDayPopup(false); setView('clinic-form') }}
-              onAddMed={() => { setShowDayPopup(false); setView('med-form') }}
               onRemove={handleRemoveEvent}
             />
           </div>
         </div>
       )}
 
-      {/* ── 내원/복약 폼은 전체 화면 ── */}
       {view === 'clinic-form' && selectedDate && (
         <ClinicForm
           date={selectedDate}
           children={children}
           onSave={handleSaveClinic}
           onBack={() => { setView('calendar'); setShowDayPopup(true) }}
+          saving={saving}
         />
       )}
 
-      {/* ── 복약 기록 폼 ── */}
-      {view === 'med-form' && selectedDate && (
+      {view === 'med-form' && (
         <MedForm
-          date={selectedDate}
           children={children}
           onSave={handleSaveMed}
-          onBack={() => { setView('calendar'); setShowDayPopup(true) }}
+          onBack={() => setView('calendar')}
+          saving={saving}
         />
       )}
 
-      {/* ── 저장 완료 ── */}
       {view === 'success' && (
         <div className="flex-1 flex flex-col items-center justify-center px-6 text-center">
           <div className="w-16 h-16 rounded-full bg-[#EAFBF1] flex items-center justify-center mb-5">
@@ -253,7 +308,7 @@ export function CalendarPage({ initialChildren }: Props) {
           <p className="text-[14px] text-[#475569] mb-8">{successMsg.sub}</p>
           <div className="flex gap-3 w-full max-w-[280px]">
             <button
-              onClick={() => { setView('calendar'); setShowDayPopup(true) }}
+              onClick={() => { setView('calendar'); if (selectedDate) setShowDayPopup(true) }}
               className="flex-1 py-3 rounded-xl border border-[rgba(82,183,136,0.2)] text-[14px] font-medium text-[#52B788] hover:bg-[rgba(82,183,136,0.08)] transition-colors">
               날짜로
             </button>

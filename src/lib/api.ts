@@ -252,6 +252,108 @@ export async function createHealthLog(
 }
 
 // ============================================================
+// Hospital Alarm API  (/api/children/{childId}/hospital-alarms)
+// ============================================================
+
+export interface HospitalAlarmRequest {
+    hospitalName: string
+    visitDate: string
+    memo?: string
+    isActive?: boolean
+}
+
+export interface HospitalAlarmResponse {
+    id: number
+    childId: number
+    hospitalName: string
+    visitDate: string
+    memo: string | null
+    isActive: boolean
+}
+
+export async function getHospitalAlarms(childId: number): Promise<HospitalAlarmResponse[]> {
+    return apiFetch<HospitalAlarmResponse[]>(`/api/children/${childId}/hospital-alarms`)
+}
+
+export async function createHospitalAlarm(
+    childId: number,
+    data: HospitalAlarmRequest
+): Promise<HospitalAlarmResponse> {
+    return apiFetch<HospitalAlarmResponse>(`/api/children/${childId}/hospital-alarms`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+    })
+}
+
+export async function updateHospitalAlarm(
+    childId: number,
+    alarmId: number,
+    data: HospitalAlarmRequest
+): Promise<HospitalAlarmResponse> {
+    return apiFetch<HospitalAlarmResponse>(`/api/children/${childId}/hospital-alarms/${alarmId}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+    })
+}
+
+export async function deleteHospitalAlarm(childId: number, alarmId: number): Promise<void> {
+    return apiFetch<void>(`/api/children/${childId}/hospital-alarms/${alarmId}`, {
+        method: 'DELETE',
+    })
+}
+
+// ============================================================
+// Medication Alarm API  (/api/children/{childId}/medication-alarms)
+// ============================================================
+
+export interface MedicationAlarmRequest {
+    medicineName: string
+    dosage: string
+    intervalHour: number
+    isActive?: boolean
+}
+
+export interface MedicationAlarmResponse {
+    id: number
+    childId: number
+    medicineName: string
+    dosage: string
+    intervalHour: number
+    isActive: boolean
+}
+
+export async function getMedicationAlarms(childId: number): Promise<MedicationAlarmResponse[]> {
+    return apiFetch<MedicationAlarmResponse[]>(`/api/children/${childId}/medication-alarms`)
+}
+
+export async function createMedicationAlarm(
+    childId: number,
+    data: MedicationAlarmRequest
+): Promise<MedicationAlarmResponse> {
+    return apiFetch<MedicationAlarmResponse>(`/api/children/${childId}/medication-alarms`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+    })
+}
+
+export async function updateMedicationAlarm(
+    childId: number,
+    alarmId: number,
+    data: MedicationAlarmRequest
+): Promise<MedicationAlarmResponse> {
+    return apiFetch<MedicationAlarmResponse>(`/api/children/${childId}/medication-alarms/${alarmId}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+    })
+}
+
+export async function deleteMedicationAlarm(childId: number, alarmId: number): Promise<void> {
+    return apiFetch<void>(`/api/children/${childId}/medication-alarms/${alarmId}`, {
+        method: 'DELETE',
+    })
+}
+
+// ============================================================
 // Chat API  (/api/chats)
 // ============================================================
 

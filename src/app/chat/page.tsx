@@ -125,6 +125,7 @@ export default function ChatPage() {
           id: newRoom.chatId,
           title: text.length > 25 ? text.substring(0, 25) + '...' : text,
           date: new Date().toLocaleDateString('ko-KR'),
+          childId: String(chosenChild.id),
           childName: chosenChild.name,
         })
       } catch (err) {
@@ -188,6 +189,7 @@ export default function ChatPage() {
           id: newRoom.chatId,
           title: '음성 상담...',
           date: new Date().toLocaleDateString('ko-KR'),
+          childId: String(chosenChild.id),
           childName: chosenChild.name,
         })
       } catch (err) {

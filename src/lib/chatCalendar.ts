@@ -30,7 +30,7 @@ export async function fetchConsultationCalendarEvents(): Promise<DayEvents> {
         const event: ConsultationRecord = {
             id: `chat-${session.id}`,
             type: 'consultation',
-            childId: '',
+            childId: session.childId,
             childName: session.childName,
             title: session.title,
             category: session.category,

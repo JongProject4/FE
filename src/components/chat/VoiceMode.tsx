@@ -153,6 +153,7 @@ export function VoiceMode({ isOpen, onClose, onSend, onSendVoice, disabled }: Pr
             id: newRoom.chatId,
             title: '음성 상담',
             date: new Date().toLocaleDateString('ko-KR'),
+            childId: String(child.id),
             childName: child.name,
         })
         return chatIdRef.current
