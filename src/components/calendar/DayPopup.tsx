@@ -1,7 +1,7 @@
 'use client'
 // src/components/calendar/DayPopup.tsx
 import { CalendarEvent, ClinicRecord, MedRecord } from './types'
-import { formatDateLabel, formatVisitDateTime } from './utils'
+import { formatDateLabel, formatVisitDateTime, formatDateTimeRange } from './utils'
 
 interface Props {
   date: Date
@@ -54,7 +54,7 @@ function MedItem({ event }: { event: MedRecord }) {
           <span className="px-2 py-0.5 bg-[#F4FCFB] text-[#40916C] text-[10px] font-semibold rounded-full flex-shrink-0 border border-[rgba(82,183,136,0.12)]">복약</span>
         </div>
         <div className="text-[12px] text-[#475569]">
-          {event.startDate} ~ {event.endDate}
+          {formatDateTimeRange(event.startDate, event.endDate)}
         </div>
         {event.times.length > 0 && (
           <div className="text-[11px] text-[#94A3B8] mt-0.5">

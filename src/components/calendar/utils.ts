@@ -56,3 +56,19 @@ export function formatVisitDateTime(iso: string): string {
   const pad = (n: number) => n.toString().padStart(2, '0')
   return `${d.getMonth() + 1}월 ${d.getDate()}일 ${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
+
+// 시작·끝 ISO LocalDateTime을 범위로 표시.
+// 같은 날: "6월 19일 20:12 ~ 23:12"   (끝은 시각만)
+// 다른 날: "6월 19일 23:12 ~ 6월 20일 02:12"
+export function formatDateTimeRange(startIso: string, endIso: string): string {
+  const start = new Date(startIso)
+  const end = new Date(endIso)
+  const sameDay = start.getFullYear() === end.getFullYear()
+    && start.getMonth() === end.getMonth()
+    && start.getDate() === end.getDate()
+  if (sameDay) {
+    const pad = (n: number) => n.toString().padStart(2, '0')
+    return `${formatVisitDateTime(startIso)} ~ ${pad(end.getHours())}:${pad(end.getMinutes())}`
+  }
+  return `${formatVisitDateTime(startIso)} ~ ${formatVisitDateTime(endIso)}`
+}
