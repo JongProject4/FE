@@ -12,6 +12,26 @@ import { ClinicRecord, MedRecord, Child, DayEvents, CalendarEvent } from './type
 import { dateKey, calcAge } from './utils'
 import { BottomNav } from '@/components/layout/BottomNav'
 
+// 복약 health_log content 형식: "약이름 용량 (N시간마다)" → name 부분과 intervalHour 분리.
+// 패턴이 안 맞으면(수기 입력 등) 원본 그대로 반환.
+function parseMedicationContent(content: string): { medName: string; intervalHour: number | null } {
+  if (!content) return { medName: '', intervalHour: null }
+  const match = content.match(/^(.+?)\s*\((\d+)\s*시간마다\)\s*$/)
+  if (match) {
+    return { medName: match[1].trim(), intervalHour: Number(match[2]) }
+  }
+  return { medName: content, intervalHour: null }
+}
+
+// LocalDateTime ISO("YYYY-MM-DDTHH:mm:ss")에 hours 더한 결과를 같은 형식으로 반환.
+// new Date()는 브라우저 로컬 TZ로 해석/출력하므로 KST 사용자 환경에서 일관 동작.
+function addHoursAsLocalIso(iso: string, hours: number): string {
+  const d = new Date(iso)
+  d.setTime(d.getTime() + hours * 3600 * 1000)
+  const pad = (n: number) => n.toString().padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+}
+
 type View = 'calendar' | 'day' | 'clinic-form' | 'med-form' | 'success'
 type CalendarMode = 'monthly' | 'weekly'
 
@@ -56,14 +76,21 @@ export function CalendarPage({ initialChildren }: Props) {
             const dateObj = new Date(log.eventDate)
             const key = dateKey(dateObj)
 
+            // 복약 알람: BE가 content에 "(N시간마다)" 표기를 포함해 보낸다.
+            // 시작=등록 시점, 끝=시작+intervalHour (다음 복용 시점)로 표시하기 위해 파싱한다.
+            // 패턴이 없으면(수기 입력 등) 시작=끝으로 폴백.
+            const medParsed = parseMedicationContent(log.content)
+
             const event: CalendarEvent = log.logType === 'MEDICATION' ? {
               id: String(log.id),
               type: 'med',
               childId: String(log.childId),
               childName: mappedChildren.find(c => c.id === String(log.childId))?.name || '',
-              medName: log.content,
+              medName: medParsed.medName,
               startDate: log.eventDate,
-              endDate: log.eventDate,
+              endDate: medParsed.intervalHour !== null
+                ? addHoursAsLocalIso(log.eventDate, medParsed.intervalHour)
+                : log.eventDate,
               times: [],
               dosage: '',
               alarmEnabled: false,
