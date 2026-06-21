@@ -20,7 +20,7 @@ export function useDeleteChat() {
         setChatSessions(previousSessions.filter((c) => c.id !== chatId))
         removeChatMeta(chatId)
 
-        const wasActiveConsultation = consultationId === String(chatId)
+        const wasActiveConsultation = consultationId === chatId
         if (wasActiveConsultation) {
             setConsultationId(null)
             setMessages([])
@@ -36,7 +36,7 @@ export function useDeleteChat() {
             const latest = useAppStore.getState().chatSessions
             setChatSessions([target, ...latest].sort((a, b) => b.id - a.id))
             if (wasActiveConsultation) {
-                setConsultationId(String(chatId))
+                setConsultationId(chatId)
             }
             toast.error('삭제에 실패했습니다.')
             return false

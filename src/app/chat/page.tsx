@@ -104,7 +104,7 @@ export default function ChatPage() {
     if (consultationId && messages.length === 0) {
       const loadHistory = async () => {
         try {
-          const history = await fetchChatHistory(Number(consultationId))
+          const history = await fetchChatHistory(consultationId)
           const { setMessages } = useAppStore.getState()
           setMessages(historyToMessages(history))
         } catch (err) {
@@ -119,12 +119,12 @@ export default function ChatPage() {
   const doSendMessage = useCallback(async (text: string, chosenChild: ChildResponse) => {
     if (isLoading) return
 
-    let currentRoomId = consultationId
+    let currentRoomId: number | null = consultationId
     if (!currentRoomId) {
       try {
         const { createChat } = await import('@/lib/api')
         const newRoom = await createChat({ childId: chosenChild.id })
-        currentRoomId = String(newRoom.chatId)
+        currentRoomId = newRoom.chatId
         setConsultationId(currentRoomId)
         addChatSession({
           id: newRoom.chatId,
@@ -160,7 +160,7 @@ export default function ChatPage() {
 
     try {
       const { sendChatMessage } = await import('@/lib/api')
-      const responseText = await sendChatMessage(Number(currentRoomId), text, uploadedImg || undefined)
+      const responseText = await sendChatMessage(currentRoomId, text, uploadedImg || undefined)
 
       const chars = responseText.split('')
       let displayed = ''
@@ -183,12 +183,12 @@ export default function ChatPage() {
   const doSendVoiceMessage = useCallback(async (blob: Blob, chosenChild: ChildResponse) => {
     if (isLoading) return
 
-    let currentRoomId = consultationId
+    let currentRoomId: number | null = consultationId
     if (!currentRoomId) {
       try {
         const { createChat } = await import('@/lib/api')
         const newRoom = await createChat({ childId: chosenChild.id })
-        currentRoomId = String(newRoom.chatId)
+        currentRoomId = newRoom.chatId
         setConsultationId(currentRoomId)
         addChatSession({
           id: newRoom.chatId,
@@ -229,7 +229,7 @@ export default function ChatPage() {
       let fullAssistantText = ''
 
       const { sendVoiceMessageStream } = await import('@/lib/api')
-      await sendVoiceMessageStream(Number(currentRoomId), blob, (chunk) => {
+      await sendVoiceMessageStream(currentRoomId, blob, (chunk) => {
         if (chunk.transcript) {
           useAppStore.setState(s => {
             const msgs = [...s.messages]
@@ -250,11 +250,11 @@ export default function ChatPage() {
         }
       })
 
-      const history = await fetchChatHistory(Number(currentRoomId))
+      const history = await fetchChatHistory(currentRoomId)
       setMessages(historyToMessages(history))
       const title = buildChatTitleFromHistory(history, 30)
       if (title) {
-        updateChatSession(Number(currentRoomId), { title, isVoice: true })
+        updateChatSession(currentRoomId, { title, isVoice: true })
       }
     } catch (err: any) {
       console.error('[Voice Chat Error]', err)
@@ -275,7 +275,7 @@ export default function ChatPage() {
   // activeChild를 자동 동기화한다. 이를 누락하면 첫째 아이로 잘못 fallback 된다.
   useEffect(() => {
     if (!consultationId || activeChild || allChildren.length === 0) return
-    const session = chatSessions.find((s) => s.id === Number(consultationId))
+    const session = chatSessions.find((s) => s.id === consultationId)
     if (!session) return
     const matched = allChildren.find((c) => String(c.id) === session.childId)
     if (matched) setActiveChild(matched)
@@ -432,7 +432,7 @@ export default function ChatPage() {
 
                 setClosing(true)
                 const toastId = toast.loading('대화를 종료하는 중...')
-                const chatId = Number(consultationId)
+                const chatId = consultationId
 
                 try {
                   const { closeChat, analyzeChat } = await import('@/lib/api')

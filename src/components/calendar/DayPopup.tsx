@@ -31,7 +31,7 @@ function ConsultationItem({ event }: { event: ConsultationRecord }) {
   const typeLabel = consultationTypeLabel(event.isVoice)
 
   const openChat = () => {
-    setConsultationId(String(event.chatId))
+    setConsultationId(event.chatId)
     setMessages([])
     router.push('/chat')
   }

@@ -116,14 +116,14 @@ export function VoiceMode({ isOpen, onClose, activeChild, onSendVoice, disabled 
     const sourceNodesRef = useRef<AudioBufferSourceNode[]>([])
 
     // Chat room ref
-    const chatIdRef = useRef<string | null>(null)
+    const chatIdRef = useRef<number | null>(null)
     const childRef = useRef<ChildResponse | null>(null)
 
     const { consultationId, setConsultationId, addMessage, addChatSession, updateChatSession, updateLastMessage, setMessages } = useAppStore()
 
     // consultationId 변경 시 ref만 동기화 (UI 초기화·재녹음 트리거 금지)
     useEffect(() => {
-        chatIdRef.current = consultationId || null
+        chatIdRef.current = consultationId ?? null
     }, [consultationId])
 
     // 모달 열림/닫힘 시에만 초기화
@@ -145,14 +145,14 @@ export function VoiceMode({ isOpen, onClose, activeChild, onSendVoice, disabled 
         return () => clearTimeout(t)
     }, [isOpen, activeChild])
 
-    const getOrCreateChatRoom = useCallback(async (): Promise<string> => {
-        if (chatIdRef.current) return chatIdRef.current
+    const getOrCreateChatRoom = useCallback(async (): Promise<number> => {
+        if (chatIdRef.current != null) return chatIdRef.current
 
         const child = childRef.current
         if (!child) throw new Error('아이를 먼저 등록해주세요.')
 
         const newRoom = await createChat({ childId: child.id })
-        chatIdRef.current = String(newRoom.chatId)
+        chatIdRef.current = newRoom.chatId
         setConsultationId(chatIdRef.current)
         addChatSession({
             id: newRoom.chatId,
@@ -165,25 +165,25 @@ export function VoiceMode({ isOpen, onClose, activeChild, onSendVoice, disabled 
         return chatIdRef.current
     }, [setConsultationId, addChatSession])
 
-    const syncTitleFromBackend = useCallback(async (roomId: string) => {
+    const syncTitleFromBackend = useCallback(async (roomId: number) => {
         try {
-            const history = await fetchChatHistory(Number(roomId))
+            const history = await fetchChatHistory(roomId)
             const title = buildChatTitleFromHistory(history, 30)
             if (title) {
-                updateChatSession(Number(roomId), { title, isVoice: true })
+                updateChatSession(roomId, { title, isVoice: true })
             }
         } catch (e) {
             console.error('Failed to sync voice chat title', e)
         }
     }, [updateChatSession])
 
-    const syncHistoryFromBackend = useCallback(async (roomId: string) => {
+    const syncHistoryFromBackend = useCallback(async (roomId: number) => {
         try {
-            const history = await fetchChatHistory(Number(roomId))
+            const history = await fetchChatHistory(roomId)
             setMessages(historyToMessages(history))
             const title = buildChatTitleFromHistory(history, 30)
             if (title) {
-                updateChatSession(Number(roomId), { title, isVoice: true })
+                updateChatSession(roomId, { title, isVoice: true })
             }
             return history
         } catch (e) {
@@ -393,7 +393,7 @@ export function VoiceMode({ isOpen, onClose, activeChild, onSendVoice, disabled 
                 isStreaming: true,
             })
 
-            await sendVoiceMessageStream(Number(roomId), blob, (chunk: ChatStreamResponse) => {
+            await sendVoiceMessageStream(roomId, blob, (chunk: ChatStreamResponse) => {
                 if (chunk.transcript) {
                     setTranscript(chunk.transcript)
                     if (!gotTranscript) gotTranscript = true
@@ -454,8 +454,8 @@ export function VoiceMode({ isOpen, onClose, activeChild, onSendVoice, disabled 
     const handleClose = async () => {
         stopListening()
         stopAllAudio()
-        const roomId = chatIdRef.current || consultationId
-        if (roomId) {
+        const roomId = chatIdRef.current ?? consultationId
+        if (roomId != null) {
             await syncHistoryFromBackend(roomId)
         }
         setTranscript('')

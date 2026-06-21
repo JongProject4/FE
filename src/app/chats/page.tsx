@@ -127,7 +127,7 @@ export default function ChatsPage() {
                             <button
                                 type="button"
                                 onClick={() => {
-                                    setConsultationId(String(chat.id))
+                                    setConsultationId(chat.id)
                                     setMessages([])
                                     router.push('/chat')
                                 }}
