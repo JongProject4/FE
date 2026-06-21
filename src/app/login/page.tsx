@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 'use client'
 // src/app/login/page.tsx
 import { useRouter } from 'next/navigation'
