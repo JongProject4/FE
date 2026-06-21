@@ -4,7 +4,7 @@ import { useState } from 'react'
 
 interface Props {
     chatId: number
-    onDelete: (chatId: number) => Promise<boolean> | void
+    onDelete: (chatId: number) => void | Promise<unknown>
     className?: string
 }
 
