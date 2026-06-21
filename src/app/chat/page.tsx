@@ -27,6 +27,7 @@ export default function ChatPage() {
     messages, consultationId,
     isLoading, addMessage, updateLastMessage, setConsultationId,
     setLoading, addChatSession, updateChatSession, setMessages, setHistoryLoaded,
+    chatSessions,
   } = useAppStore()
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const [uploadedImg, setUploadedImg] = useState<string | null>(null)
@@ -267,9 +268,18 @@ export default function ChatPage() {
   const resolveChildForSession = useCallback((): ChildResponse | null => {
     if (activeChild) return activeChild
     if (allChildren.length === 1) return allChildren[0]
-    if (consultationId && allChildren.length > 0) return allChildren[0]
     return null
-  }, [activeChild, allChildren, consultationId])
+  }, [activeChild, allChildren])
+
+  // 기존 상담에 진입한 경우, chatSessions에서 매칭되는 세션의 childId로
+  // activeChild를 자동 동기화한다. 이를 누락하면 첫째 아이로 잘못 fallback 된다.
+  useEffect(() => {
+    if (!consultationId || activeChild || allChildren.length === 0) return
+    const session = chatSessions.find((s) => s.id === Number(consultationId))
+    if (!session) return
+    const matched = allChildren.find((c) => String(c.id) === session.childId)
+    if (matched) setActiveChild(matched)
+  }, [consultationId, activeChild, allChildren, chatSessions])
 
   const openChildModal = useCallback((action: PendingAction) => {
     if (allChildren.length === 0) {
