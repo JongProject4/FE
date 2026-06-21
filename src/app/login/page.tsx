@@ -1,8 +1,7 @@
 'use client'
 // src/app/login/page.tsx
-export const dynamic = 'force-dynamic';
 import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -29,7 +28,7 @@ const SLIDES = [
   }
 ]
 
-export default function LoginPage() {
+function LoginContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [loading, setLoading] = useState(false)
@@ -187,5 +186,19 @@ export default function LoginPage() {
         )}
       </AnimatePresence>
     </main>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex h-dvh items-center justify-center bg-[#F5F8FF]">
+          <div className="w-10 h-10 rounded-full border-3 border-[#4A90D9] border-t-transparent animate-spin" />
+        </div>
+      }
+    >
+      <LoginContent />
+    </Suspense>
   )
 }
