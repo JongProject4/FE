@@ -9,6 +9,7 @@ import { getChildColor } from '@/lib/childColors'
 import { ChatListItemMeta } from '@/components/chat/ChatListItemMeta'
 import { useDeleteChat } from '@/hooks/useDeleteChat'
 import { ChatDeleteButton } from '@/components/chat/ChatDeleteButton'
+import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { BottomNav } from '@/components/layout/BottomNav'
 
 export default function ChatsPage() {
@@ -19,7 +20,18 @@ export default function ChatsPage() {
     } = useAppStore()
     const [search, setSearch] = useState('')
     const [loading, setLoading] = useState(false)
+    const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null)
     const { deleteChatById } = useDeleteChat()
+
+    const requestDelete = async (chatId: number) => {
+        setPendingDeleteId(chatId)
+    }
+    const cancelDelete = () => setPendingDeleteId(null)
+    const confirmDelete = async () => {
+        const id = pendingDeleteId
+        setPendingDeleteId(null)
+        if (id != null) await deleteChatById(id)
+    }
 
     const loadHistory = async (forceRefresh = false) => {
         if (historyLoaded && !forceRefresh && chatSessions.length > 0) {
@@ -115,7 +127,7 @@ export default function ChatsPage() {
                             <button
                                 type="button"
                                 onClick={() => {
-                                    setConsultationId(String(chat.id))
+                                    setConsultationId(chat.id)
                                     setMessages([])
                                     router.push('/chat')
                                 }}
@@ -126,7 +138,7 @@ export default function ChatsPage() {
                             </button>
                             <ChatDeleteButton
                                 chatId={chat.id}
-                                onDelete={deleteChatById}
+                                onDelete={requestDelete}
                                 className="mr-2"
                             />
                         </div>
@@ -154,6 +166,17 @@ export default function ChatsPage() {
             </button>
 
             <BottomNav />
+
+            <ConfirmDialog
+                open={pendingDeleteId != null}
+                title="이 상담 기록을 삭제할까요?"
+                description="삭제된 상담 기록은 복구할 수 없습니다."
+                confirmLabel="삭제"
+                cancelLabel="취소"
+                onConfirm={confirmDelete}
+                onCancel={cancelDelete}
+                danger
+            />
         </main>
     )
 }

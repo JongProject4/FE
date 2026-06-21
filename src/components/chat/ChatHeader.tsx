@@ -70,7 +70,7 @@ export function ChatHeader({ onNewChat }: ChatHeaderProps = {}) {
   }, [isOpen])
 
   const handleChatClick = (chatId: number) => {
-    setConsultationId(String(chatId))
+    setConsultationId(chatId)
     setMessages([]) // Clear local messages to trigger reload in ChatPage
     setIsOpen(false)
     router.push('/chat')

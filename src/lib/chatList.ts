@@ -24,60 +24,66 @@ function parseRoomIds(rooms: unknown[]): number[] {
         .filter((id) => !Number.isNaN(id))
 }
 
+/**
+ * 사용자별 모든 아이의 상담 세션을 로드한다.
+ * N(아이) * M(상담) 만큼의 API 호출이 발생하므로 Promise.all 로 병렬화한다.
+ * 동기 for-loop 으로 처리하면 시연 규모에서도 수 초 이상 걸리는 사례 발생.
+ */
 export async function fetchChatSessions(titleMaxLength = 30): Promise<ChatSession[]> {
     const children = await getChildren()
     if (children.length === 0) return []
 
-    const sessions: ChatSession[] = []
+    const perChild = await Promise.all(
+        children.map(async (child) => {
+            const rooms = await getChatRooms(child.id)
+            if (!Array.isArray(rooms)) return [] as ChatSession[]
+            const sortedIds = [...parseRoomIds(rooms)].sort((a, b) => b - a)
 
-    for (const child of children) {
-        const rooms = await getChatRooms(child.id)
-        if (!Array.isArray(rooms)) continue
+            return Promise.all(
+                sortedIds.map(async (id): Promise<ChatSession> => {
+                    const stored = getChatMeta(id)
+                    let title = stored?.title ?? `${child.name}의 상담 #${id}`
+                    let date = stored?.date ?? new Date().toLocaleDateString('ko-KR')
+                    let eventDateKey: string | undefined
+                    const isVoice = stored?.isVoice ?? isVoicePlaceholder(stored?.title) ?? false
 
-        const sortedIds = [...parseRoomIds(rooms)].sort((a, b) => b - a)
+                    try {
+                        const messages = await getChatHistory(id)
+                        const apiTitle = buildChatTitleFromHistory(messages, titleMaxLength)
+                        if (apiTitle) {
+                            title = apiTitle
+                        } else if (isVoicePlaceholder(stored?.title)) {
+                            title = `${child.name}의 상담 #${id}`
+                        }
 
-        for (const id of sortedIds) {
-            const stored = getChatMeta(id)
-            let title = stored?.title ?? `${child.name}의 상담 #${id}`
-            let date = stored?.date ?? new Date().toLocaleDateString('ko-KR')
-            let eventDateKey: string | undefined
-            let isVoice = stored?.isVoice ?? isVoicePlaceholder(stored?.title) ?? false
+                        const firstUserMsg = messages.find((m) => m.role === 'USER')
+                        if (firstUserMsg?.time) {
+                            date = formatDate(firstUserMsg.time)
+                            eventDateKey = toEventDateKey(firstUserMsg.time) ?? undefined
+                        }
+                    } catch (e) {
+                        console.error(`Failed to load chat ${id}`, e)
+                    }
 
-            try {
-                const messages = await getChatHistory(id)
-                const apiTitle = buildChatTitleFromHistory(messages, titleMaxLength)
-                if (apiTitle) {
-                    title = apiTitle
-                } else if (isVoicePlaceholder(stored?.title)) {
-                    title = `${child.name}의 상담 #${id}`
-                }
+                    if (!eventDateKey) {
+                        eventDateKey = toEventDateKey(stored?.date) ?? toEventDateKey(new Date().toISOString()) ?? undefined
+                    }
 
-                const firstUserMsg = messages.find((m) => m.role === 'USER')
-                if (firstUserMsg?.time) {
-                    date = formatDate(firstUserMsg.time)
-                    eventDateKey = toEventDateKey(firstUserMsg.time) ?? undefined
-                }
-            } catch (e) {
-                console.error(`Failed to load chat ${id}`, e)
-            }
+                    return {
+                        id,
+                        title,
+                        date,
+                        childId: String(child.id),
+                        childName: child.name,
+                        category: stored?.category ?? 'ANALYZING',
+                        riskLevel: stored?.riskLevel ?? 'ANALYZING',
+                        eventDateKey,
+                        isVoice,
+                    }
+                })
+            )
+        })
+    )
 
-            if (!eventDateKey) {
-                eventDateKey = toEventDateKey(stored?.date) ?? toEventDateKey(new Date().toISOString()) ?? undefined
-            }
-
-            sessions.push({
-                id,
-                title,
-                date,
-                childId: String(child.id),
-                childName: child.name,
-                category: stored?.category ?? 'ANALYZING',
-                riskLevel: stored?.riskLevel ?? 'ANALYZING',
-                eventDateKey,
-                isVoice,
-            })
-        }
-    }
-
-    return sessions.sort((a, b) => b.id - a.id)
+    return perChild.flat().sort((a, b) => b.id - a.id)
 }

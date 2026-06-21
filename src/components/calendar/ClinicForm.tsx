@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Child, ClinicRecord } from './types'
 import { dateKey, toLocalDateTimeString } from './utils'
 import type { HospitalAlarmRequest } from '@/lib/api'
+import { useAppStore } from '@/lib/store'
 
 export interface ClinicFormSavePayload {
   childId: string
@@ -20,7 +21,11 @@ interface Props {
 }
 
 export function ClinicForm({ date, children, onSave, onBack, saving = false }: Props) {
-  const [childId, setChildId] = useState(children[0]?.id || '')
+  const selectedChildId = useAppStore((s) => s.selectedChildId)
+  // 전역 선택된 아이가 있으면 그 값을 기본값으로. 없을 때만 첫째로 fallback.
+  const initialChildId =
+    (selectedChildId && children.some((c) => c.id === selectedChildId) ? selectedChildId : children[0]?.id) || ''
+  const [childId, setChildId] = useState(initialChildId)
   const [hospitalName, setHospitalName] = useState('')
   const [visitHour, setVisitHour] = useState(String(date.getHours() || 10))
   const [visitMinute, setVisitMinute] = useState(String(date.getMinutes() || 0).padStart(2, '0'))

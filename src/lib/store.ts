@@ -38,7 +38,7 @@ interface AppStore {
   selectedChildId: string | null
   children: Child[]
   messages: Message[]
-  consultationId: string | null
+  consultationId: number | null
   isLoading: boolean
   chatSessions: ChatSession[]
   historyLoaded: boolean
@@ -48,7 +48,7 @@ interface AppStore {
   addMessage: (msg: Message) => void
   updateLastMessage: (content: string, done?: boolean, riskLevel?: string, diagnosis?: string) => void
   clearMessages: () => void
-  setConsultationId: (id: string | null) => void
+  setConsultationId: (id: number | null) => void
   setMessages: (messages: Message[]) => void
   setLoading: (v: boolean) => void
   setChatSessions: (sessions: ChatSession[]) => void
