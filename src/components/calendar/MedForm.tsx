@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Child } from './types'
 import type { MedicationAlarmRequest } from '@/lib/api'
+import { useAppStore } from '@/lib/store'
 
 export interface MedFormSavePayload {
   childId: string
@@ -20,7 +21,11 @@ const MIN_INTERVAL_HOUR = 1
 const MAX_INTERVAL_HOUR = 48
 
 export function MedForm({ children, onSave, onBack, saving = false }: Props) {
-  const [childId, setChildId] = useState(children[0]?.id || '')
+  const selectedChildId = useAppStore((s) => s.selectedChildId)
+  // 전역 선택된 아이가 있으면 그 값을 기본값으로. 없을 때만 첫째로 fallback.
+  const initialChildId =
+    (selectedChildId && children.some((c) => c.id === selectedChildId) ? selectedChildId : children[0]?.id) || ''
+  const [childId, setChildId] = useState(initialChildId)
   const [medicineName, setMedicineName] = useState('')
   const [dosage, setDosage] = useState('')
   const [intervalHourInput, setIntervalHourInput] = useState('4')
